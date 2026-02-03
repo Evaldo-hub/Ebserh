@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Plano de Estudos - EBSERH TI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-calendar-alt"></i> Plano de Estudos - 12 Semanas
+        </h2>
+        <p class="text-muted">Siga nossa estrutura organizada para garantir seu sucesso no concurso!</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    {% for semana in plano %}
+    <div class="col-lg-6 col-xl-4">
+        <div class="card semana-card h-100 nivel-{{ 'basico' if semana.semana <= 4 else 'alto' if semana.semana <= 8 else 'pegadinha' }}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-week"></i> Semana {{ semana.semana }}
+                </h5>
+                {% if semana.semana <= 4 %}
+                    <span class="badge bg-success">Fase Inicial</span>
+                {% elif semana.semana <= 8 %}
+                    <span class="badge bg-warning">Fase Intermediária</span>
+                {% else %}
+                    <span class="badge bg-danger">Fase Final</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Conteúdo:</strong>
+                    <p class="text-muted small mt-1">{{ semana.conteudo.replace('\n', '<br>') | safe }}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <strong>Disciplinas:</strong>
+                    <div class="mt-2">
+                        {% for disciplina in semana.disciplinas.split(',') %}
+                        <span class="badge bg-secondary me-1">{{ disciplina }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="progress mb-3">
+                    {% if semana.semana <= 4 %}
+                        <div class="progress-bar bg-success" style="width: 25%">25%</div>
+                    {% elif semana.semana <= 8 %}
+                        <div class="progress-bar bg-warning" style="width: 66%">66%</div>
+                    {% else %}
+                        <div class="progress-bar bg-danger" style="width: 90%">90%</div>
+                    {% endif %}
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        {% if semana.semana <= 4 %}
+                            <i class="fas fa-book"></i> Foco: Conceitos básicos
+                        {% elif semana.semana <= 8 %}
+                            <i class="fas fa-brain"></i> Foco: Profundização
+                        {% else %}
+                            <i class="fas fa-fire"></i> Foco: Revisão e pegadinhas
+                        {% endif %}
+                    </small>
+                    <button class="btn btn-primary btn-sm" onclick="location.href='{{ url_for('questoes', semana=semana.semana) }}'">
+                        <i class="fas fa-play"></i> Estudar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Estrutura do Plano</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6 class="text-success"><i class="fas fa-flag"></i> Semanas 1-4: Fundamentos</h6>
+                        <ul class="small">
+                            <li>Conceitos básicos de cada disciplina</li>
+                            <li>Questões nível básico e médio</li>
+                            <li>Foco em compreensão inicial</li>
+                            <li>Meta: 65% de acerto</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-warning"><i class="fas fa-flag"></i> Semanas 5-8: Profundização</h6>
+                        <ul class="small">
+                            <li>Conteúdos mais complexos</li>
+                            <li>Questões nível alto</li>
+                            <li>Introdução às pegadinhas</li>
+                            <li>Meta: 75% de acerto</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-danger"><i class="fas fa-flag"></i> Semanas 9-12: Consolidação</h6>
+                        <ul class="small">
+                            <li>Revisão geral</li>
+                            <li>Foco em pegadinhas</li>
+                            <li>Simulados completos</li>
+                            <li>Meta: 85% de acerto</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="alert alert-warning" role="alert">
+            <h6 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Dica de Ouro</h6>
+            <p class="mb-0">Não pule semanas! Cada semana constrói sobre a anterior. Se tiver dificuldade, revise as semanas anteriores antes de avançar.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Simulados - EBSERH TI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-tasks"></i> Simulados
+        </h2>
+        <p class="text-muted">Crie simulados personalizados para testar seu conhecimento.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cog"></i> Configurar Simulado
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('gerar_simulado') }}">
+                    <div class="mb-4">
+                        <label for="num_questoes" class="form-label">Número de Questões</label>
+                        <select class="form-select" id="num_questoes" name="num_questoes" required>
+                            <option value="5">5 questões (Rápido)</option>
+                            <option value="10" selected>10 questões (Padrão)</option>
+                            <option value="15">15 questões</option>
+                            <option value="20">20 questões</option>
+                            <option value="30">30 questões (Completo)</option>
+                        </select>
+                        <small class="form-text text-muted">Tempo estimado: ~2 minutos por questão</small>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Disciplinas</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Lei 12.550/2011" id="disc1" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc1">Lei 12.550/2011</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Estatuto Social" id="disc2" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc2">Estatuto Social</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="LGPD" id="disc3" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc3">LGPD</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Segurança da Informação" id="disc4" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc4">Segurança da Informação</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Agilidade" id="disc5" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc5">Agilidade</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Banco de Dados" id="disc6" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc6">Banco de Dados</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Redes" id="disc7" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc7">Redes</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Gestão de TI" id="disc8" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc8">Gestão de TI</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Cloud Computing" id="disc9" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc9">Cloud Computing</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Desenvolvimento Web" id="disc10" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc10">Desenvolvimento Web</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="APIs" id="disc11" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc11">APIs</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="Testes de Software" id="disc12" name="disciplinas" checked>
+                                    <label class="form-check-label" for="disc12">Testes de Software</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleAllDisciplines(true)">
+                                <i class="fas fa-check-square"></i> Marcar todas
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleAllDisciplines(false)">
+                                <i class="fas fa-square"></i> Desmarcar todas
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Níveis de Dificuldade</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Básico" id="nivel1" name="niveis" checked>
+                            <label class="form-check-label" for="nivel1">
+                                🟢 Básico (Fixação de conceitos)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Alto" id="nivel2" name="niveis" checked>
+                            <label class="form-check-label" for="nivel2">
+                                🟡 Alto (Nível analista)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Pegadinha" id="nivel3" name="niveis" checked>
+                            <label class="form-check-label" for="nivel3">
+                                🔴 Pegadinha (Armadilhas da banca)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-play"></i> Iniciar Simulado
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Dicas para Simulados</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6>🎯 Para Iniciantes:</h6>
+                    <ul class="small">
+                        <li>Comece com 5-10 questões</li>
+                        <li>Foque em disciplinas básicas</li>
+                        <li>Use todos os níveis de dificuldade</li>
+                        <li>Não se preocupe com o tempo</li>
+                    </ul>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>🚀 Para Intermediários:</h6>
+                    <ul class="small">
+                        <li>15-20 questões por simulado</li>
+                        <li>Balance as disciplinas</li>
+                        <li>Inclua mais questões nível alto</li>
+                        <li>Atenção ao tempo</li>
+                    </ul>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>🔥 Para Avançados:</h6>
+                    <ul class="small">
+                        <li>30 questões (simulado completo)</li>
+                        <li>Foque em pegadinhas</li>
+                        <li>Simule condições reais de prova</li>
+                        <li>Controle rigoroso do tempo</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-line"></i> Metas de Desempenho</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>🟢 Básico</span>
+                        <strong>≥ 80%</strong>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" style="width: 80%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>🟡 Alto</span>
+                        <strong>≥ 65%</strong>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-warning" style="width: 65%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>🔴 Pegadinha</span>
+                        <strong>≥ 50%</strong>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-danger" style="width: 50%"></div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>📊 Geral</span>
+                        <strong>≥ 70%</strong>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-primary" style="width: 70%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Como Aproveitar os Simulados</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-clock"></i> Antes do Simulado</h6>
+                        <ul class="small">
+                            <li>Escolha um ambiente tranquilo</li>
+                            <li>Tenha papel e caneta à mão</li>
+                            <li>Deixe o celular em modo silencioso</li>
+                            <li>Esteja descansado e alimentado</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-pencil-alt"></i> Durante o Simulado</h6>
+                        <ul class="small">
+                            <li>Leia cada enunciado com atenção</li>
+                            <li>Elimine as alternativas incorretas</li>
+                            <li>Não marque aleatoriamente</li>
+                            <li>Controle o tempo disponível</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-check-circle"></i> Após o Simulado</h6>
+                        <ul class="small">
+                            <li>Analise todas as questões</li>
+                            <li>Entenda por que errou</li>
+                            <li>Revise os comentários</li>
+                            <li>Identifique padrões de erro</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleAllDisciplines(checked) {
+    const checkboxes = document.querySelectorAll('input[name="disciplines"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = checked;
+    });
+}
+</script>
+{% endblock %}

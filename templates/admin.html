@@ -1,0 +1,654 @@
+{% extends "base.html" %}
+
+{% block title %}Painel Admin - IA Gerador de Questões{% endblock %}
+
+{% block extra_css %}
+<script>
+// Definição imediata da função completa para evitar erros de carregamento
+function gerarQuestoes() {
+    console.log('Função gerarQuestoes chamada - executando imediatamente');
+    
+    const disciplina = document.getElementById('disciplina')?.value;
+    const nivel = document.getElementById('nivel')?.value;
+    const quantidade = parseInt(document.getElementById('quantidade')?.value || '5');
+
+    console.log('Dados:', { disciplina, nivel, quantidade });
+
+    if (!disciplina) {
+        alert('Selecione uma disciplina!');
+        return;
+    }
+
+    // Mostrar loading
+    const loadingArea = document.getElementById('loading-area');
+    const resultadosArea = document.getElementById('resultados-area');
+    
+    if (loadingArea) loadingArea.classList.remove('d-none');
+    if (resultadosArea) resultadosArea.classList.add('d-none');
+
+    // Função para exibir questões
+    window.exibirQuestoes = function(questoes) {
+        console.log('Exibindo questões:', questoes.length);
+        const container = document.getElementById('questoes-geradas');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        window.questoesGeradas = questoes;
+
+        questoes.forEach((questao, index) => {
+            const alternativas = typeof questao.alternativas === 'string' 
+                ? JSON.parse(questao.alternativas) 
+                : questao.alternativas;
+                
+            const questaoCard = `
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Questão ${index + 1}</h6>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" onclick="alert('Editar questão ${index + 1}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="alert('Remover questão ${index + 1}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Disciplina:</strong> ${questao.disciplina}</p>
+                            <p><strong>Nível:</strong> ${questao.nivel}</p>
+                            <p><strong>Enunciado:</strong> ${questao.enunciado}</p>
+                            <p><strong>Alternativas:</strong></p>
+                            <ul>
+                                ${Object.entries(alternativas).map(([letra, texto]) => 
+                                    `<li><strong>${letra}:</strong> ${texto}</li>`
+                                ).join('')}
+                            </ul>
+                            <p><strong>Resposta:</strong> ${questao.resposta_correta}</p>
+                            <p><strong>Comentário:</strong> ${questao.comentario}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML += questaoCard;
+        });
+
+        if (resultadosArea) resultadosArea.classList.remove('d-none');
+        if (loadingArea) loadingArea.classList.add('d-none');
+    };
+
+    // Requisição para gerar questões
+    fetch('/ia/gerar_questoes', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            disciplina: disciplina,
+            nivel: nivel,
+            quantidade: quantidade
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Resposta recebida:', data);
+        if (data.status === 'sucesso') {
+            window.exibirQuestoes(data.questoes);
+        } else {
+            alert('Erro ao gerar questões: ' + (data.error || 'Erro desconhecido'));
+            if (loadingArea) loadingArea.classList.add('d-none');
+        }
+    })
+    .catch(error => {
+        console.error('Erro completo:', error);
+        alert('Erro ao conectar com a IA: ' + error.message);
+        if (loadingArea) loadingArea.classList.add('d-none');
+    });
+}
+
+// Variável global para questões
+window.questoesGeradas = [];
+
+// Função para adicionar ao banco
+function adicionarAoBanco() {
+    console.log('Função adicionarAoBanco chamada');
+    
+    if (!window.questoesGeradas || window.questoesGeradas.length === 0) {
+        alert('Nenhuma questão para adicionar!');
+        return;
+    }
+
+    if (!confirm(`Adicionar ${window.questoesGeradas.length} questões ao banco?`)) {
+        return;
+    }
+
+    // Mostrar loading
+    const loadingArea = document.getElementById('loading-area');
+    if (loadingArea) loadingArea.classList.remove('d-none');
+
+    fetch('/admin/adicionar_questoes', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            questoes: window.questoesGeradas
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Resposta adicionar ao banco:', data);
+        if (data.status === 'sucesso') {
+            alert(`${data.adicionadas} questões adicionadas com sucesso!`);
+            
+            // Limpar resultados
+            window.questoesGeradas = [];
+            const resultadosArea = document.getElementById('resultados-area');
+            const questoesContainer = document.getElementById('questoes-geradas');
+            if (resultadosArea) resultadosArea.classList.add('d-none');
+            if (questoesContainer) questoesContainer.innerHTML = '';
+            
+            // Recarregar estatísticas
+            carregarEstatisticas();
+        } else {
+            alert('Erro ao adicionar questões: ' + (data.error || 'Erro desconhecido'));
+        }
+        if (loadingArea) loadingArea.classList.add('d-none');
+    })
+    .catch(error => {
+        console.error('Erro ao adicionar questões:', error);
+        alert('Erro ao adicionar questões: ' + error.message);
+        if (loadingArea) loadingArea.classList.add('d-none');
+    });
+}
+
+// Função para carregar estatísticas
+function carregarEstatisticas() {
+    console.log('Carregando estatísticas...');
+    
+    fetch('/api/estatisticas')
+    .then(response => response.json())
+    .then(stats => {
+        console.log('Estatísticas recebidas:', stats);
+        
+        const container = document.getElementById('stats-container');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">${stats.total_questoes || 0}</h5>
+                        <p class="card-text">Total de Questões</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-success">${stats.questoes_ia || 0}</h5>
+                        <p class="card-text">Geradas por IA</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-info">${stats.disciplinas || 0}</h5>
+                        <p class="card-text">Disciplinas</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning">${stats.pegadinhas || 0}</h5>
+                        <p class="card-text">Pegadinhas</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    })
+    .catch(error => {
+        console.error('Erro ao carregar estatísticas:', error);
+    });
+}
+
+// Carregar estatísticas quando página carregar
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM carregado, carregando estatísticas...');
+    carregarEstatisticas();
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-robot"></i> Painel Admin - IA Gerador de Questões
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- Formulário de Geração -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label for="disciplina" class="form-label">Disciplina</label>
+                            <select class="form-select" id="disciplina">
+                                <option value="">Selecione...</option>
+                                <option value="Lei 12.550/2011">Lei 12.550/2011</option>
+                                <option value="Estatuto Social">Estatuto Social</option>
+                                <option value="LGPD">LGPD</option>
+                                <option value="Segurança da Informação">Segurança da Informação</option>
+                                <option value="Agilidade">Agilidade</option>
+                                <option value="Banco de Dados">Banco de Dados</option>
+                                <option value="Redes">Redes</option>
+                                <option value="Gestão de TI">Gestão de TI</option>
+                                <option value="Cloud Computing">Cloud Computing</option>
+                                <option value="Desenvolvimento Web">Desenvolvimento Web</option>
+                                <option value="APIs">APIs</option>
+                                <option value="Testes de Software">Testes de Software</option>
+                                <option value="DevOps">DevOps</option>
+                                <option value="Business Intelligence">Business Intelligence</option>
+                                <option value="Analytics">Analytics</option>
+                                <option value="Governança de TI">Governança de TI</option>
+                                <option value="COBIT">COBIT</option>
+                                <option value="ITIL">ITIL</option>
+                                <option value="Service Desk">Service Desk</option>
+                                <option value="Projetos">Projetos</option>
+                                <option value="Scrum">Scrum</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="nivel" class="form-label">Nível</label>
+                            <select class="form-select" id="nivel">
+                                <option value="Básico">Básico</option>
+                                <option value="Alto">Alto</option>
+                                <option value="Pegadinha">Pegadinha</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="quantidade" class="form-label">Quantidade</label>
+                            <input type="number" class="form-control" id="quantidade" value="5" min="1" max="20">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label><br>
+                            <button class="btn btn-success w-100" onclick="gerarQuestoes()">
+                                <i class="fas fa-magic"></i> Gerar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Área de Carregamento -->
+                    <div id="loading-area" class="text-center d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Gerando...</span>
+                        </div>
+                        <h5 class="mt-3">IA está gerando questões...</h5>
+                        <p class="text-muted">Isso pode levar alguns segundos</p>
+                    </div>
+
+                    <!-- Área de Resultados -->
+                    <div id="resultados-area" class="d-none">
+                        <div class="alert alert-success">
+                            <h5><i class="fas fa-check-circle"></i> Questões Geradas!</h5>
+                            <p class="mb-0">Revise as questões abaixo antes de adicionar ao banco.</p>
+                        </div>
+
+                        <!-- Botões de Ação -->
+                        <div class="mb-3">
+                            <button class="btn btn-primary" onclick="adicionarAoBanco()">
+                                <i class="fas fa-database"></i> Adicionar Todas ao Banco
+                            </button>
+                            <button class="btn btn-secondary" onclick="exportarQuestoes()">
+                                <i class="fas fa-download"></i> Exportar JSON
+                            </button>
+                            <button class="btn btn-warning" onclick="limparResultados()">
+                                <i class="fas fa-trash"></i> Limpar
+                            </button>
+                        </div>
+
+                        <!-- Lista de Questões Geradas -->
+                        <div id="questoes-geradas" class="row">
+                            <!-- Questões serão inseridas aqui -->
+                        </div>
+                    </div>
+
+                    <!-- Estatísticas -->
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <h6><i class="fas fa-chart-bar"></i> Estatísticas do Banco</h6>
+                            <div id="stats-container" class="row">
+                                <!-- Estatísticas serão carregadas aqui -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Edição de Questão -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Questão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editForm">
+                    <div class="mb-3">
+                        <label class="form-label">Enunciado</label>
+                        <textarea class="form-control" id="edit-enunciado" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Alternativa A</label>
+                            <input type="text" class="form-control" id="edit-a">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Alternativa B</label>
+                            <input type="text" class="form-control" id="edit-b">
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Alternativa C</label>
+                            <input type="text" class="form-control" id="edit-c">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Alternativa D</label>
+                            <input type="text" class="form-control" id="edit-d">
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Resposta Correta</label>
+                            <select class="form-select" id="edit-resposta">
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Banca</label>
+                            <input type="text" class="form-control" id="edit-banca" value="IA-Gerada">
+                        </div>
+                    </div>
+                    <div class="mb-3 mt-3">
+                        <label class="form-label">Comentário</label>
+                        <textarea class="form-control" id="edit-comentario" rows="4"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarEdicao()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Garantir que as funções estejam disponíveis globalmente
+window.gerarQuestoesCompleto = async function() {
+    alert('Botão clicado! Iniciando geração...');
+    
+    const disciplina = document.getElementById('disciplina').value;
+    const nivel = document.getElementById('nivel').value;
+    const quantidade = parseInt(document.getElementById('quantidade').value);
+
+    console.log('Gerando questões:', { disciplina, nivel, quantidade });
+
+    if (!disciplina) {
+        alert('Selecione uma disciplina!');
+        return;
+    }
+
+    // Mostrar loading
+    document.getElementById('loading-area').classList.remove('d-none');
+    document.getElementById('resultados-area').classList.add('d-none');
+
+    try {
+        console.log('Enviando requisição para /ia/gerar_questoes');
+        const response = await fetch('/ia/gerar_questoes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                disciplina: disciplina,
+                nivel: nivel,
+                quantidade: quantidade
+            })
+        });
+
+        console.log('Resposta recebida:', response.status);
+        const data = await response.json();
+        console.log('Dados:', data);
+
+        if (data.status === 'sucesso') {
+            questoesGeradas = data.questoes;
+            exibirQuestoesGeradas();
+        } else {
+            alert('Erro ao gerar questões: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erro completo:', error);
+        alert('Erro ao conectar com a IA: ' + error.message);
+    } finally {
+        document.getElementById('loading-area').classList.add('d-none');
+    }
+};
+
+window.exibirQuestoesGeradas = function() {
+    console.log('Exibindo questões geradas:', questoesGeradas.length);
+    const container = document.getElementById('questoes-geradas');
+    container.innerHTML = '';
+
+    questoesGeradas.forEach((questao, index) => {
+        const questaoCard = `
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Questão ${index + 1}</h6>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="editarQuestao(${index})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="removerQuestao(${index})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Disciplina:</strong> ${questao.disciplina}</p>
+                        <p><strong>Nível:</strong> ${questao.nivel}</p>
+                        <p><strong>Enunciado:</strong> ${questao.enunciado}</p>
+                        <p><strong>Alternativas:</strong></p>
+                        <ul>
+                            ${Object.entries(JSON.parse(questao.alternativas)).map(([letra, texto]) => 
+                                `<li><strong>${letra}:</strong> ${texto}</li>`
+                            ).join('')}
+                        </ul>
+                        <p><strong>Resposta:</strong> ${questao.resposta_correta}</p>
+                        <p><strong>Comentário:</strong> ${questao.comentario}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.innerHTML += questaoCard;
+    });
+
+    document.getElementById('resultados-area').classList.remove('d-none');
+};
+
+window.editarQuestao = function(index) {
+    questaoEditandoIndex = index;
+    const questao = questoesGeradas[index];
+    const alternativas = JSON.parse(questao.alternativas);
+
+    document.getElementById('edit-enunciado').value = questao.enunciado;
+    document.getElementById('edit-a').value = alternativas.A || '';
+    document.getElementById('edit-b').value = alternativas.B || '';
+    document.getElementById('edit-c').value = alternativas.C || '';
+    document.getElementById('edit-d').value = alternativas.D || '';
+    document.getElementById('edit-resposta').value = questao.resposta_correta;
+    document.getElementById('edit-banca').value = questao.banca || 'IA-Gerada';
+    document.getElementById('edit-comentario').value = questao.comentario;
+
+    new bootstrap.Modal(document.getElementById('editModal')).show();
+};
+
+window.salvarEdicao = function() {
+    if (questaoEditandoIndex === -1) return;
+
+    const alternativas = {
+        A: document.getElementById('edit-a').value,
+        B: document.getElementById('edit-b').value,
+        C: document.getElementById('edit-c').value,
+        D: document.getElementById('edit-d').value
+    };
+
+    questoesGeradas[questaoEditandoIndex] = {
+        ...questoesGeradas[questaoEditandoIndex],
+        enunciado: document.getElementById('edit-enunciado').value,
+        alternativas: JSON.stringify(alternativas),
+        resposta_correta: document.getElementById('edit-resposta').value,
+        banca: document.getElementById('edit-banca').value,
+        comentario: document.getElementById('edit-comentario').value
+    };
+
+    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+    exibirQuestoesGeradas();
+};
+
+window.removerQuestao = function(index) {
+    if (confirm('Remover esta questão?')) {
+        questoesGeradas.splice(index, 1);
+        exibirQuestoesGeradas();
+    }
+};
+
+window.adicionarAoBanco = async function() {
+    if (questoesGeradas.length === 0) {
+        alert('Nenhuma questão para adicionar!');
+        return;
+    }
+
+    if (!confirm(`Adicionar ${questoesGeradas.length} questões ao banco?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/admin/adicionar_questoes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                questoes: questoesGeradas
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'sucesso') {
+            alert(`${data.adicionadas} questões adicionadas com sucesso!`);
+            limparResultados();
+            carregarEstatisticas();
+        } else {
+            alert('Erro ao adicionar questões: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao adicionar questões');
+    }
+};
+
+window.exportarQuestoes = function() {
+    if (questoesGeradas.length === 0) {
+        alert('Nenhuma questão para exportar!');
+        return;
+    }
+
+    const dataStr = JSON.stringify(questoesGeradas, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `questoes_ia_${Date.now()}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+};
+
+window.limparResultados = function() {
+    questoesGeradas = [];
+    document.getElementById('resultados-area').classList.add('d-none');
+    document.getElementById('questoes-geradas').innerHTML = '';
+};
+
+window.carregarEstatisticas = async function() {
+    try {
+        const response = await fetch('/api/estatisticas');
+        const stats = await response.json();
+        
+        const container = document.getElementById('stats-container');
+        container.innerHTML = `
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">${stats.total_questoes}</h5>
+                        <p class="card-text">Total de Questões</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-success">${stats.questoes_ia}</h5>
+                        <p class="card-text">Geradas por IA</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-info">${stats.disciplinas}</h5>
+                        <p class="card-text">Disciplinas</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning">${stats.pegadinhas}</h5>
+                        <p class="card-text">Pegadinhas</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Erro ao carregar estatísticas:', error);
+    }
+};
+
+// Variáveis globais
+let questoesGeradas = [];
+let questaoEditandoIndex = -1;
+
+// Carregar estatísticas ao abrir página
+document.addEventListener('DOMContentLoaded', function() {
+    carregarEstatisticas();
+});
+</script>
+{% endblock %}

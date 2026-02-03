@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Simulado - Questão {{ numero }}/{{ total }} - EBSERH TI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-tasks"></i> Simulado em Andamento
+            </h2>
+            <div class="progress" style="width: 200px; height: 25px;">
+                <div class="progress-bar bg-info" role="progressbar" style="width: {{ (numero/total * 100)|round(0) }}%">
+                    {{ numero }}/{{ total }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">Questão {{ numero }} de {{ total }}</h5>
+                    <small class="text-muted">{{ questao.disciplina }} • Semana {{ questao.semana }} • {{ questao.banca }}</small>
+                </div>
+                <span class="badge badge-nivel 
+                    {% if questao.nivel == 'Básico' %}bg-success
+                    {% elif questao.nivel == 'Alto' %}bg-warning
+                    {% else %}bg-danger{% endif %}">
+                    {% if questao.nivel == 'Básico' %}🟢
+                    {% elif questao.nivel == 'Alto' %}🟡
+                    {% else %}🔴{% endif %}
+                    {{ questao.nivel }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h6>Enunciado:</h6>
+                    <p class="lead">{{ questao.enunciado }}</p>
+                </div>
+                
+                <div class="mb-4">
+                    <h6>Alternativas:</h6>
+                    <div id="alternativas-container">
+                        {% set alternativas = questao.alternativas | from_json %}
+                        {% for letra, texto in alternativas.items() %}
+                        <div class="alternativa mb-2 p-3 rounded" data-letra="{{ letra }}" onclick="selecionarAlternativa('{{ letra }}')">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <span class="badge bg-secondary">{{ letra }}</span>
+                                </div>
+                                <div>{{ texto }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="text-center">
+                    <button id="btn-responder" class="btn btn-primary btn-lg" onclick="responderQuestao()" disabled>
+                        <i class="fas fa-arrow-right"></i> Próxima Questão
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Informações da Questão</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Disciplina:</strong><br>
+                    <span class="text-primary">{{ questao.disciplina }}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Semana:</strong><br>
+                    <span class="text-primary">Semana {{ questao.semana }}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Banca:</strong><br>
+                    <span class="text-primary">{{ questao.banca }}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Nível:</strong><br>
+                    <span class="badge 
+                        {% if questao.nivel == 'Básico' %}bg-success
+                        {% elif questao.nivel == 'Alto' %}bg-warning
+                        {% else %}bg-danger{% endif %}">
+                        {% if questao.nivel == 'Básico' %}🟢
+                        {% elif questao.nivel == 'Alto' %}🟡
+                        {% else %}🔴{% endif %}
+                        {{ questao.nivel }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-line"></i> Progresso do Simulado</h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <div class="display-4 text-primary">{{ numero }}</div>
+                    <div class="text-muted">de {{ total }} questões</div>
+                </div>
+                
+                <div class="progress mb-3" style="height: 10px;">
+                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ (numero/total * 100)|round(0) }}%">
+                    </div>
+                </div>
+                
+                <div class="text-center">
+                    <small class="text-muted">
+                        {{ ((numero/total * 100)|round(0)) }}% completo
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Lembrete</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-0">
+                    Leia com atenção cada alternativa. Em simulados, o ritmo é importante, mas a precisão é fundamental!
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let alternativaSelecionada = '';
+
+function selecionarAlternativa(letra) {
+    // Remove seleção anterior
+    document.querySelectorAll('.alternativa').forEach(alt => {
+        alt.classList.remove('selected');
+    });
+    
+    // Adiciona seleção atual
+    const alternativa = document.querySelector(`[data-letra="${letra}"]`);
+    alternativa.classList.add('selected');
+    
+    alternativaSelecionada = letra;
+    
+    // Habilita botão responder
+    document.getElementById('btn-responder').disabled = false;
+}
+
+function responderQuestao() {
+    if (!alternativaSelecionada) {
+        alert('Por favor, selecione uma alternativa.');
+        return;
+    }
+    
+    // Desabilita botão e alternativas
+    document.getElementById('btn-responder').disabled = true;
+    document.querySelectorAll('.alternativa').forEach(alt => {
+        alt.style.pointerEvents = 'none';
+    });
+    
+    // Envia resposta
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/responder_simulado';
+    
+    const inputResposta = document.createElement('input');
+    inputResposta.type = 'hidden';
+    inputResposta.name = 'resposta';
+    inputResposta.value = alternativaSelecionada;
+    
+    const inputQuestao = document.createElement('input');
+    inputQuestao.type = 'hidden';
+    inputQuestao.name = 'questao_id';
+    inputQuestao.value = '{{ questao.id }}';
+    
+    form.appendChild(inputResposta);
+    form.appendChild(inputQuestao);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Adiciona atalho de teclado
+document.addEventListener('keydown', function(event) {
+    if (event.key >= 'a' && event.key <= 'd') {
+        const letra = event.key.toUpperCase();
+        const alternativa = document.querySelector(`[data-letra="${letra}"]`);
+        if (alternativa && !alternativa.style.pointerEvents) {
+            selecionarAlternativa(letra);
+        }
+    } else if (event.key === 'Enter' && !document.getElementById('btn-responder').disabled) {
+        responderQuestao();
+    }
+});
+</script>
+{% endblock %}

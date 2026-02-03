@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado do Simulado - EBSERH TI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="text-center mb-5">
+            <h2 class="mb-3">
+                <i class="fas fa-trophy"></i> Resultado do Simulado
+            </h2>
+            <p class="text-muted">Veja seu desempenho detalhado</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card stats-card text-white text-center">
+            <div class="card-body">
+                <h1 class="display-4">{{ acertos }}</h1>
+                <p class="card-text">Acertos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stats-card text-white text-center">
+            <div class="card-body">
+                <h1 class="display-4">{{ total - acertos }}</h1>
+                <p class="card-text">Erros</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stats-card text-white text-center">
+            <div class="card-body">
+                <h1 class="display-4">{{ percentual }}%</h1>
+                <p class="card-text">Taxa de Acerto</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list-check"></i> Análise Detalhada
+                </h5>
+                <div>
+                    {% if percentual >= 70 %}
+                        <span class="badge bg-success fs-6">Excelente!</span>
+                    {% elif percentual >= 50 %}
+                        <span class="badge bg-warning fs-6">Bom</span>
+                    {% else %}
+                        <span class="badge bg-danger fs-6">Precisa melhorar</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                {% for resultado in resultados %}
+                <div class="card mb-3 {% if resultado.acerto %}border-success{% else %}border-danger{% endif %}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Questão {{ loop.index }}</h6>
+                            <small class="text-muted">{{ resultado.questao.disciplina }} • {{ resultado.questao.nivel }}</small>
+                        </div>
+                        <div>
+                            {% if resultado.acerto %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check"></i> Correto
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times"></i> Incorreto
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><strong>Enunciado:</strong> {{ resultado.questao.enunciado }}</p>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Sua resposta:</strong> 
+                                    <span class="badge {% if resultado.acerto %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ resultado.resposta_usuario }}
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Gabarito:</strong> 
+                                    <span class="badge bg-success">{{ resultado.questao.resposta_correta }}</span>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        {% if not resultado.acerto %}
+                        <div class="comentario-box">
+                            <h6><i class="fas fa-comment"></i> Comentário:</h6>
+                            <p class="mb-0">{{ resultado.questao.comentario }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-pie"></i> Análise de Desempenho
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>📊 Seu Resultado:</h6>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Taxa de acerto</span>
+                                <strong>{{ percentual }}%</strong>
+                            </div>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar 
+                                    {% if percentual >= 70 %}bg-success
+                                    {% elif percentual >= 50 %}bg-warning
+                                    {% else %}bg-danger{% endif %}" 
+                                    role="progressbar" 
+                                    style="width: {{ percentual }}%">
+                                    {{ percentual }}%
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <p class="text-muted">
+                            {% if percentual >= 80 %}
+                                Excelente desempenho! Você está muito bem preparado para a prova.
+                            {% elif percentual >= 70 %}
+                                Bom desempenho! Continue estudando para manter este nível.
+                            {% elif percentual >= 50 %}
+                                Desempenho razoável. Foque em revisar os conteúdos onde você errou.
+                            {% else %}
+                                Desempenho abaixo do esperado. Recomendo revisar os fundamentos e praticar mais.
+                            {% endif %}
+                        </p>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6>🎯 Próximos Passos:</h6>
+                        <ul class="small">
+                            {% if percentual < 70 %}
+                                <li>Revise as questões que você errou</li>
+                                <li>Foque nas disciplinas com mais erros</li>
+                                <li>Pratique mais questões de nível básico</li>
+                                <li>Considere fazer simulados menores</li>
+                            {% else %}
+                                <li>Desafie-se com questões nível alto</li>
+                                <li>Pratique mais pegadinhas</li>
+                                <li>Faça simulados com mais questões</li>
+                                <li>Mantenha a rotina de estudos</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <div class="d-flex justify-content-center gap-3">
+            <a href="{{ url_for('simulado') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-redo"></i> Novo Simulado
+            </a>
+            <a href="{{ url_for('questoes') }}" class="btn btn-outline-primary btn-lg">
+                <i class="fas fa-list"></i> Mais Questões
+            </a>
+            <a href="{{ url_for('desempenho') }}" class="btn btn-info btn-lg">
+                <i class="fas fa-chart-line"></i> Meu Desempenho
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="alert alert-success text-center">
+            <h6 class="alert-heading"><i class="fas fa-trophy"></i> Parabéns por concluir o simulado!</h6>
+            <p class="mb-0">Cada simulado é uma oportunidade de aprender e melhorar. Continue estudando que você chegará lá!</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
