@@ -1,0 +1,24 @@
+include README_DEPLOY.md
+include requirements.txt
+include runtime.txt
+include pyproject.toml
+include setup.py
+include MANIFEST.in
+include .env.example
+include render.yaml
+include browserconfig.xml
+include manifest.json
+include generate_pwa_icons.py
+include migrate_data.py
+
+recursive-include templates *
+recursive-include static *
+recursive-include icons *
+
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude .DS_Store
+global-exclude *.log
+global-exclude .env
+global-exclude *.db
+global-exclude .git*
