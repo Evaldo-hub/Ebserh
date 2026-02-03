@@ -1,0 +1,86 @@
+services:
+  # Web Service
+  - type: web
+    name: ebserh-ti-study
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python app_production.py"
+    
+    # Variáveis de ambiente
+    envVars:
+      # Configurações básicas
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PORT
+        value: 10000
+      
+      # Configurações do Render
+      - key: RENDER_SERVICE_ID
+        sync: false
+      - key: RENDER_EXTERNAL_URL
+        sync: false
+      - key: RENDER_EXTERNAL_HOSTNAME
+        sync: false
+      
+      # Configurações de banco (serão preenchidas automaticamente)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ebserh-ti-db
+          property: connectionString
+      
+      # Configurações de performance
+      - key: WEB_CONCURRENCY
+        value: 1
+      - key: TIMEOUT
+        value: 30
+
+  # PostgreSQL Database
+  - type: pserv
+    name: ebserh-ti-db
+    plan: free
+    databaseName: ebserh_study
+    
+    # Configurações do PostgreSQL
+    envVars:
+      - key: POSTGRES_USER
+        value: ebserh_user
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+      - key: POSTGRES_DB
+        value: ebserh_study
+
+# Configurações de build
+build:
+  # Python version
+  pythonVersion: "3.11"
+  
+  # Dependencies
+  requirementsPath: requirements.txt
+  
+  # Build hooks
+  preBuild:
+    - "echo 'Iniciando build do EBSERH TI Study App'"
+  
+  postBuild:
+    - "python -c 'from database import init_db; init_db()'"
+    - "echo 'Banco de dados inicializado com sucesso'"
+
+# Configurações de domínio (opcional)
+# domains:
+#   - name: ebserh-ti.yourdomain.com
+
+# Configurações de health check
+healthCheckPath: /health
+
+# Configurações de deploy
+autoDeploy: true
+
+# Configurações de escalabilidade (para planos pagos)
+# scaling:
+#   minInstances: 1
+#   maxInstances: 3
+#   targetMemoryPercent: 70
+#   targetCPUUtilization: 65
