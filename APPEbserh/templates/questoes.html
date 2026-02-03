@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Questões - EBSERH TI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-question-circle"></i> Banco de Questões
+        </h2>
+        <p class="text-muted">Pratique com questões organizadas por disciplina, semana e nível de dificuldade.</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-filter"></i> Filtros</h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('questoes') }}">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="disciplina" class="form-label">Disciplina</label>
+                            <select class="form-select" id="disciplina" name="disciplina">
+                                <option value="">Todas as disciplinas</option>
+                                {% for d in disciplinas %}
+                                <option value="{{ d.disciplina }}" {% if filtros.disciplina == d.disciplina %}selected{% endif %}>
+                                    {{ d.disciplina }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="semana" class="form-label">Semana</label>
+                            <select class="form-select" id="semana" name="semana">
+                                <option value="">Todas as semanas</option>
+                                {% for s in semanas %}
+                                <option value="{{ s.semana }}" {% if filtros.semana == s.semana|string %}selected{% endif %}>
+                                    Semana {{ s.semana }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="nivel" class="form-label">Nível</label>
+                            <select class="form-select" id="nivel" name="nivel">
+                                <option value="">Todos os níveis</option>
+                                <option value="Básico" {% if filtros.nivel == 'Básico' %}selected{% endif %}>
+                                    🟢 Básico
+                                </option>
+                                <option value="Alto" {% if filtros.nivel == 'Alto' %}selected{% endif %}>
+                                    🟡 Alto
+                                </option>
+                                <option value="Pegadinha" {% if filtros.nivel == 'Pegadinha' %}selected{% endif %}>
+                                    🔴 Pegadinha
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i> Filtrar
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted">
+                <i class="fas fa-list"></i> 
+                {{ questoes|length }} questões encontradas
+            </span>
+            {% if filtros.disciplina or filtros.semana or filtros.nivel %}
+            <a href="{{ url_for('questoes') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-times"></i> Limpar filtros
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    {% for questao in questoes %}
+    <div class="col-lg-6">
+        <div class="card h-100 nivel-{{ questao.nivel.lower().replace('á', 'a').replace('ç', 'c').replace('ê', 'e') }}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0">{{ questao.disciplina }}</h6>
+                    <small class="text-muted">Semana {{ questao.semana }} • {{ questao.banca }}</small>
+                </div>
+                <span class="badge badge-nivel 
+                    {% if questao.nivel == 'Básico' %}bg-success
+                    {% elif questao.nivel == 'Alto' %}bg-warning
+                    {% else %}bg-danger{% endif %}">
+                    {% if questao.nivel == 'Básico' %}🟢
+                    {% elif questao.nivel == 'Alto' %}🟡
+                    {% else %}🔴{% endif %}
+                    {{ questao.nivel }}
+                </span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">{{ questao.enunciado[:150] }}{% if questao.enunciado|length > 150 %}...{% endif %}</p>
+                
+                <div class="mb-3">
+                    <small class="text-muted">
+                        <i class="fas fa-list-ol"></i> 4 alternativas
+                    </small>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-clock"></i> 
+                        {% if questao.nivel == 'Básico' %}2 min
+                        {% elif questao.nivel == 'Alto' %}4 min
+                        {% else %}5 min{% endif %}
+                    </small>
+                    <a href="{{ url_for('questao_detalhe', questao_id=questao.id) }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-play"></i> Responder
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if questoes|length == 0 %}
+<div class="row">
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Nenhuma questão encontrada</h5>
+            <p class="text-muted">Tente ajustar os filtros para encontrar questões disponíveis.</p>
+            <a href="{{ url_for('questoes') }}" class="btn btn-primary">
+                <i class="fas fa-redo"></i> Limpar filtros
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Legendas dos Níveis</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-success me-2">🟢 Básico</span>
+                            <div>
+                                <strong>Fixação de conceitos</strong>
+                                <p class="small text-muted mb-0">Questões diretas para compreender os fundamentos.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-warning me-2">🟡 Alto</span>
+                            <div>
+                                <strong>Nível analista</strong>
+                                <p class="small text-muted mb-0">Questões complexas que exigem análise profunda.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-danger me-2">🔴 Pegadinha</span>
+                            <div>
+                                <strong>Armadilhas da banca</strong>
+                                <p class="small text-muted mb-0">Questões que treinam o olhar para detalhes.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

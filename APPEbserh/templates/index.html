@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}EBSERH TI - Sistema de Estudos para Concurso{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="text-center mb-5">
+            <h1 class="display-4 text-primary fw-bold">
+                <i class="fas fa-graduation-cap"></i> EBSERH TI
+            </h1>
+            <p class="lead">Sistema de Estudos para Concurso</p>
+            <p class="text-muted">Sua aprovação é nossa missão!</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 text-center semana-card" onclick="window.location.href='{{ url_for('plano') }}'">
+            <div class="card-body">
+                <div class="mb-3">
+                    <i class="fas fa-calendar-alt fa-3x text-primary"></i>
+                </div>
+                <h5 class="card-title">Estudar por Plano</h5>
+                <p class="card-text">Siga nosso plano de 12 semanas organizado por disciplinas e conteúdo progressivo.</p>
+                <span class="badge bg-primary">12 Semanas</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 text-center semana-card" onclick="window.location.href='{{ url_for('questoes') }}'">
+            <div class="card-body">
+                <div class="mb-3">
+                    <i class="fas fa-question-circle fa-3x text-success"></i>
+                </div>
+                <h5 class="card-title">Questões</h5>
+                <p class="card-text">Pratique com questões organizadas por disciplina, semana e nível de dificuldade.</p>
+                <div class="mt-2">
+                    <span class="badge bg-success me-1">🟢 Básico</span>
+                    <span class="badge bg-warning me-1">🟡 Alto</span>
+                    <span class="badge bg-danger">🔴 Pegadinha</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 text-center semana-card" onclick="window.location.href='{{ url_for('simulado') }}'">
+            <div class="card-body">
+                <div class="mb-3">
+                    <i class="fas fa-tasks fa-3x text-warning"></i>
+                </div>
+                <h5 class="card-title">Simulados</h5>
+                <p class="card-text">Teste seu conhecimento com simulados personalizados e veja sua pontuação.</p>
+                <span class="badge bg-warning">Personalizados</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 text-center semana-card" onclick="window.location.href='{{ url_for('desempenho') }}'">
+            <div class="card-body">
+                <div class="mb-3">
+                    <i class="fas fa-chart-line fa-3x text-info"></i>
+                </div>
+                <h5 class="card-title">Meu Desempenho</h5>
+                <p class="card-text">Acompanhe sua evolução, identifique pontos fracos e melhore seu desempenho.</p>
+                <span class="badge bg-info">Estatísticas</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Como Funciona</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="text-center mb-3">
+                            <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                <span class="fw-bold">1</span>
+                            </div>
+                        </div>
+                        <h6 class="text-center">Escolha seu estudo</h6>
+                        <p class="text-center text-muted">Siga o plano semanal ou escolha questões por disciplina.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center mb-3">
+                            <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                <span class="fw-bold">2</span>
+                            </div>
+                        </div>
+                        <h6 class="text-center">Responda às questões</h6>
+                        <p class="text-center text-muted">Pratique com diferentes níveis de dificuldade.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center mb-3">
+                            <div class="bg-warning text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                <span class="fw-bold">3</span>
+                            </div>
+                        </div>
+                        <h6 class="text-center">Acompanhe seu progresso</h6>
+                        <p class="text-center text-muted">Veja suas estatísticas e melhore seu desempenho.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="alert alert-info" role="alert">
+            <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Dica Importante</h6>
+            <p class="mb-0">Concentre-se em entender o <strong>porquê</strong> de cada resposta. Nossos comentários explicam detalhadamente as alternativas corretas e as armadilhas mais comuns das bancas examinadoras.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
