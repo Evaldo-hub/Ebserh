@@ -1,9 +1,7 @@
-Flask
-sqlite3
-openai
+Flask==3.1.2
+openai>=1.30.0
 faiss-cpu
 pypdf2
 python-dotenv
 tiktoken==2.3.3
 Jinja2==3.1.2
-Werkzeug==2.3.7
