@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importador de Questões - EBSERH Study</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .import-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .format-preview {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 5px;
+        }
+        .banca-card {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .banca-card:hover {
+            border-color: #007bff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.2);
+        }
+        .banca-card.active {
+            border-color: #007bff;
+            background: #e7f3ff;
+        }
+        .text-area {
+            min-height: 300px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            transition: border-color 0.3s ease;
+        }
+        .text-area:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+        }
+        .preview-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+            min-height: 200px;
+        }
+        .success-animation {
+            animation: slideIn 0.5s ease;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        .detected-format {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            padding: 0.5rem 1rem;
+            margin: 1rem 0;
+        }
+        .preview-alternativa {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            transition: all 0.3s ease;
+        }
+        .preview-alternativa:hover {
+            background: #f8f9fa;
+        }
+        .preview-alternativa.correct {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        .preview-alternativa.incorrect {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+        .preview-badge {
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        .preview-gabarito {
+            background: #28a745;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-graduation-cap me-2"></i>
+                EBSERH Study
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/questoes">
+                    <i class="fas fa-list me-1"></i> Questões
+                </a>
+                <a class="nav-link active" href="/importar">
+                    <i class="fas fa-upload me-1"></i> Importar
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container import-container">
+        <div class="text-center mb-4">
+            <h2 class="mb-3">
+                <i class="fas fa-magic text-primary me-2"></i>
+                Importador Automático de Questões
+            </h2>
+            <p class="text-muted">Cole a questão e o sistema detecta automaticamente o formato da banca</p>
+        </div>
+
+        <!-- Seleção de Formato -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h5 class="mb-3">
+                    <i class="fas fa-list-check me-2"></i>
+                    1. Selecione o Formato da Banca
+                </h5>
+                <div class="row">
+                    <div class="col-md-6 col-lg-3">
+                        <div class="banca-card" onclick="selectFormat('CESPE')">
+                            <h6 class="mb-2">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                CESPE
+                            </h6>
+                            <small class="text-muted">Certo / Errado</small>
+                            <div class="format-preview mt-2">
+                                <code>( ) Certo ( ) Errado</code>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="banca-card" onclick="selectFormat('IBFC')">
+                            <h6 class="mb-2">
+                                <i class="fas fa-circle-check text-info me-2"></i>
+                                IBFC
+                            </h6>
+                            <small class="text-muted">A) B) C) D)</small>
+                            <div class="format-preview mt-2">
+                                <code>A) Opção A</code>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="banca-card" onclick="selectFormat('FGV')">
+                            <h6 class="mb-2">
+                                <i class="fas fa-square-check text-warning me-2"></i>
+                                FGV
+                            </h6>
+                            <small class="text-muted">A. B. C. D.</small>
+                            <div class="format-preview mt-2">
+                                <code>A. Opção A</code>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="banca-card" onclick="selectFormat('FCC')">
+                            <h6 class="mb-2">
+                                <i class="fas fa-tasks text-danger me-2"></i>
+                                FCC
+                            </h6>
+                            <small class="text-muted">(A) (B) (C) (D)</small>
+                            <div class="format-preview mt-2">
+                                <code>(A) Opção A</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Colar Questão -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h5 class="mb-3">
+                    <i class="fas fa-paste me-2"></i>
+                    2. Cole a Questão Abaixo
+                </h5>
+                <textarea 
+                    id="questaoTexto" 
+                    class="form-control text-area" 
+                    placeholder="Cole a questão aqui em qualquer formato suportado...
+
+Exemplo CESPE:
+A EBSERH segue integralmente o regime jurídico de direito público.
+( ) Certo
+( ) Errado
+
+Exemplo IBFC:
+Como deve ser composto o capital social da EBSERH?
+A) Integralmente sob a propriedade da União.
+B) Composto por 51% de capital público.
+C) Dividido entre União e Estados.
+D) Exclusivamente por doações.
+
+Gabarito: A"
+                    oninput="detectFormat()"
+                ></textarea>
+                
+                <div id="detectedFormat" class="detected-format" style="display: none;">
+                    <i class="fas fa-robot me-2"></i>
+                    <span id="formatDetected"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configurações -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <label class="form-label">
+                    <i class="fas fa-book me-2"></i>
+                    Disciplina
+                </label>
+                <select id="disciplina" class="form-select">
+                    <option value="Lei 12.550/2011">Lei 12.550/2011</option>
+                    <option value="LGPD">LGPD</option>
+                    <option value="Segurança da Informação">Segurança da Informação</option>
+                    <option value="Banco de Dados">Banco de Dados</option>
+                    <option value="Cloud Computing">Cloud Computing</option>
+                    <option value="ITIL">ITIL</option>
+                    <option value="Scrum">Scrum</option>
+                    <option value="Business Intelligence">Business Intelligence</option>
+                    <option value="DevOps">DevOps</option>
+                    <option value="Estatuto Social">Estatuto Social</option>
+                    <option value="Gestão de Projetos">Gestão de Projetos</option>
+                    <option value="Desenvolvimento Web">Desenvolvimento Web</option>
+                    <option value="Redes">Redes</option>
+                    <option value="Gestão de Ti">Gestão de Ti</option>
+                    <option value="Governança de Ti">Governança de Ti</option>
+                    <option value="Service Desk">Service Desk</option>
+                    <option value="Cybersecurity">Cybersecurity</option>
+                    <option value="Teste de Software">Teste de Software</option>
+                    <option value="APIs">APIs</option>
+                    <option value="COBIT">COBIT</option>
+                    <option value="Engenharia de Software">Engenharia de Software</option>
+                    <option value="Engenharia de Requisitos">Engenharia de Requisitos</option>
+                    <option value="Gestão de Relacionamento">Gestão de Relacionamento</option>
+                    <option value="Gerência de Projetos">Gerência de Projetos</option>
+                    <option value="Arquitetura e tecnologias de sistemas de informação">Arquitetura e tecnologias de sistemas de informação</option>
+                    <option value="Gestão estratégica">Gestão estratégica</option>
+                    <option value="Gestão de processos de negócio. Modelagem de processos com BPMN">Gestão de processos de negócio. Modelagem de processos com BPMN</option>
+                    <option value="Tecnologia da Informação na Administração Pública">Tecnologia da Informação na Administração Pública</option>
+                    <option value="Fundamentos dos Sistemas de Gestão Hospitalar">Fundamentos dos Sistemas de Gestão Hospitalar</option>
+                    <option value="Sistemas de Informação Oficiais do Ministério da Saúde">Sistemas de Informação Oficiais do Ministério da Saúde</option>
+                    <option value="Fundamentos e Padrões de Interoperabilidade em Saúde">Fundamentos e Padrões de Interoperabilidade em Saúde</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">
+                    <i class="fas fa-calendar-week me-2"></i>
+                    Semana
+                </label>
+                <select id="semana" class="form-select">
+                    <option value="1">Semana 1</option>
+                    <option value="2">Semana 2</option>
+                    <option value="3">Semana 3</option>
+                    <option value="4">Semana 4</option>
+                    <option value="5">Semana 5</option>
+                    <option value="6">Semana 6</option>
+                    <option value="7">Semana 7</option>
+                    <option value="8">Semana 8</option>
+                    <option value="9">Semana 9</option>
+                    <option value="10">Semana 10</option>
+                    <option value="11">Semana 11</option>
+                    <option value="12">Semana 12</option>
+                    <option value="13">Semana 13</option>
+                    <option value="14">Semana 14</option>
+                    <option value="15">Semana 15</option>
+                    <option value="16">Semana 16</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">
+                    <i class="fas fa-university me-2"></i>
+                    Banca Organizadora
+                </label>
+                <select id="banca" class="form-select">
+                    <option value="CESPE">CESPE</option>
+                    <option value="IBFC">IBFC</option>
+                    <option value="FGV">FGV</option>
+                    <option value="FCC">FCC</option>
+                    <option value="VUNESP">VUNESP</option>
+                    <option value="FAURGS">FAURGS</option>
+                    <option value="COPEVE">COPEVE</option>
+                    <option value="AOCP">AOCP</option>
+                    <option value="FUNCAB">FUNCAB</option>
+                    <option value="Outra">Outra</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label class="form-label">
+                    <i class="fas fa-layer-group me-2"></i>
+                    Nível
+                </label>
+                <select id="nivel" class="form-select">
+                    <option value="Básico">Básico</option>
+                    <option value="Alto">Alto</option>
+                    <option value="Pegadinha">Pegadinha</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">
+                    <i class="fas fa-tag me-2"></i>
+                    Tipo
+                </label>
+                <select id="tipo" class="form-select">
+                    <option value="Múltipla Escolha">Múltipla Escolha</option>
+                    <option value="Certo/Errado">Certo/Errado</option>
+                    <option value="Discursiva">Discursiva</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Botões -->
+        <div class="row mb-4">
+            <div class="col-12 text-center">
+                <button onclick="importarQuestao()" class="btn btn-primary btn-lg me-2">
+                    <i class="fas fa-upload me-2"></i>
+                    Importar Questão
+                </button>
+                <button onclick="limparCampos()" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-eraser me-2"></i>
+                    Limpar
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Processando...</span>
+            </div>
+            <p class="mt-2">Processando questão...</p>
+        </div>
+
+        <!-- Preview -->
+        <div id="preview" class="preview-box" style="display: none;">
+            <h6 class="mb-3">
+                <i class="fas fa-eye me-2"></i>
+                Preview da Questão Importada
+            </h6>
+            <div id="previewContent"></div>
+        </div>
+
+        <!-- Resultado -->
+        <div id="resultado" style="display: none;">
+            <!-- Mensagens serão inseridas aqui -->
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedFormat = '';
+
+        function selectFormat(format) {
+            selectedFormat = format;
+            
+            // Remover classe active de todos
+            document.querySelectorAll('.banca-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            // Adicionar classe active ao selecionado
+            event.currentTarget.classList.add('active');
+        }
+
+        function detectFormat() {
+            const texto = document.getElementById('questaoTexto').value;
+            if (!texto) return;
+
+            // Detectar formato automaticamente
+            let detectedFormat = 'Desconhecido';
+            if (texto.includes('Certo') && texto.includes('Errado')) {
+                detectedFormat = 'CESPE';
+            } else if (texto.includes('A)') || texto.includes('B)')) {
+                detectedFormat = 'IBFC';
+            } else if (texto.includes('A.') || texto.includes('B.')) {
+                detectedFormat = 'FGV';
+            } else if (texto.includes('(A)') || texto.includes('(B)')) {
+                detectedFormat = 'FCC';
+            }
+
+            // Mostrar formato detectado
+            if (detectedFormat !== 'Desconhecido') {
+                document.getElementById('detectedFormat').style.display = 'block';
+                document.getElementById('formatDetected').textContent = `Formato detectado: ${detectedFormat}`;
+                
+                // Selecionar automaticamente
+                selectFormat(detectedFormat);
+                document.querySelectorAll('.banca-card').forEach(card => {
+                    if (card.textContent.includes(detectedFormat)) {
+                        card.classList.add('active');
+                    }
+                });
+            }
+        }
+
+        async function importarQuestao() {
+            const texto = document.getElementById('questaoTexto').value;
+            const disciplina = document.getElementById('disciplina').value;
+            const nivel = document.getElementById('nivel').value;
+            const semana = document.getElementById('semana').value;
+            const banca = document.getElementById('banca').value;
+            const tipo = document.getElementById('tipo').value;
+
+            if (!texto.trim()) {
+                showAlert('Por favor, cole a questão!', 'warning');
+                return;
+            }
+
+            // Mostrar loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultado').style.display = 'none';
+
+            try {
+                const response = await fetch('/ia/importar_questao_texto', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        texto: texto,
+                        disciplina: disciplina,
+                        nivel: nivel,
+                        semana: semana,
+                        banca: banca,
+                        tipo: tipo
+                    })
+                });
+
+                const result = await response.json();
+
+                // Esconder loading
+                document.getElementById('loading').style.display = 'none';
+
+                if (response.ok) {
+                    showSuccess(result);
+                    showPreview(result.questao);
+                } else {
+                    showError(result.error || 'Erro ao importar questão');
+                }
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                showError('Erro de conexão: ' + error.message);
+            }
+        }
+
+        function showSuccess(result) {
+            const resultadoDiv = document.getElementById('resultado');
+            resultadoDiv.innerHTML = `
+                <div class="alert alert-success success-animation">
+                    <h5><i class="fas fa-check-circle me-2"></i>Questão Importada com Sucesso!</h5>
+                    <p class="mb-2">${result.mensagem}</p>
+                    <hr>
+                    <strong>Detalhes:</strong><br>
+                    Disciplina: ${result.questao.disciplina}<br>
+                    Nível: ${result.questao.nivel || 'Não detectado'}<br>
+                    Tipo: ${result.questao.tipo || 'Múltipla Escolha'}<br>
+                    Alternativas: ${Object.keys(result.questao.alternativas).length}<br>
+                    Gabarito: ${result.questao.resposta}
+                </div>
+            `;
+            resultadoDiv.style.display = 'block';
+        }
+
+        function showError(message) {
+            const resultadoDiv = document.getElementById('resultado');
+            resultadoDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Erro na Importação</h5>
+                    <p>${message}</p>
+                    <hr>
+                    <small class="text-muted">
+                        Verifique se o formato está correto e tente novamente.
+                    </small>
+                </div>
+            `;
+            resultadoDiv.style.display = 'block';
+        }
+
+        function showAlert(message, type) {
+            const resultadoDiv = document.getElementById('resultado');
+            resultadoDiv.innerHTML = `
+                <div class="alert alert-${type}">
+                    <i class="fas fa-exclamation-circle me-2"></i>${message}
+                </div>
+            `;
+            resultadoDiv.style.display = 'block';
+        }
+
+        function showPreview(questao) {
+            const previewDiv = document.getElementById('preview');
+            const previewContent = document.getElementById('previewContent');
+            
+            let alternativasHtml = '';
+            if (questao.tipo === 'certo_errado') {
+                alternativasHtml = `
+                    <div class="preview-alternativa ${questao.resposta === 'A' ? 'correct' : 'incorrect'}">
+                        <span class="preview-badge">A)</span> ${questao.alternativas.A || 'Certo'}
+                        ${questao.resposta === 'A' ? '<span class="preview-gabarito ms-2">✓ Gabarito</span>' : ''}
+                    </div>
+                    <div class="preview-alternativa ${questao.resposta === 'B' ? 'correct' : 'incorrect'}">
+                        <span class="preview-badge">B)</span> ${questao.alternativas.B || 'Errado'}
+                        ${questao.resposta === 'B' ? '<span class="preview-gabarito ms-2">✓ Gabarito</span>' : ''}
+                    </div>
+                `;
+            } else {
+                for (const [letra, texto] of Object.entries(questao.alternativas)) {
+                    const isCorrect = letra === questao.resposta;
+                    alternativasHtml += `
+                        <div class="preview-alternativa ${isCorrect ? 'correct' : ''}">
+                            <span class="preview-badge">${letra}.</span> ${texto}
+                            ${isCorrect ? '<span class="preview-gabarito ms-2">✓ Gabarito</span>' : ''}
+                        </div>
+                    `;
+                }
+            }
+
+            previewContent.innerHTML = `
+                <div class="mb-3">
+                    <h6><i class="fas fa-question-circle me-2"></i>Enunciado:</h6>
+                    <p class="mb-0">${questao.enunciado}</p>
+                </div>
+                <div class="mb-3">
+                    <h6><i class="fas fa-list-check me-2"></i>Alternativas:</h6>
+                    ${alternativasHtml}
+                </div>
+                <div class="mb-3">
+                    <h6><i class="fas fa-check-circle me-2"></i>Resposta Correta:</h6>
+                    <span class="preview-gabarito">${questao.resposta}</span>
+                </div>
+                ${questao.comentario ? `
+                <div class="mb-3">
+                    <h6><i class="fas fa-comment me-2"></i>Comentário:</h6>
+                    <p class="mb-0"><em>${questao.comentario}</em></p>
+                </div>
+                ` : ''}
+                <div class="text-center mt-3">
+                    <button onclick="editarQuestao()" class="btn btn-outline-primary btn-sm me-2">
+                        <i class="fas fa-edit me-1"></i> Editar Questão
+                    </button>
+                    <button onclick="salvarQuestao()" class="btn btn-success btn-sm">
+                        <i class="fas fa-save me-1"></i> Confirmar Importação
+                    </button>
+                </div>
+            `;
+            
+            previewDiv.style.display = 'block';
+        }
+
+        function limparCampos() {
+            document.getElementById('questaoTexto').value = '';
+            document.getElementById('resultado').style.display = 'none';
+            document.getElementById('preview').style.display = 'none';
+            document.getElementById('detectedFormat').style.display = 'none';
+            
+            // Remover seleção de formato
+            document.querySelectorAll('.banca-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            selectedFormat = '';
+        }
+
+        function editarQuestao() {
+            // Habilitar edição dos campos
+            document.getElementById('disciplina').disabled = false;
+            document.getElementById('semana').disabled = false;
+            document.getElementById('banca').disabled = false;
+            document.getElementById('nivel').disabled = false;
+            document.getElementById('tipo').disabled = false;
+            
+            showAlert('Você pode editar os campos e clicar em "Confirmar Importação" para salvar as alterações.', 'info');
+        }
+
+        async function salvarQuestao() {
+            const disciplina = document.getElementById('disciplina').value;
+            const semana = document.getElementById('semana').value;
+            const banca = document.getElementById('banca').value;
+            const nivel = document.getElementById('nivel').value;
+            const tipo = document.getElementById('tipo').value;
+
+            try {
+                const response = await fetch('/ia/salvar_questao_importada', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        disciplina: disciplina,
+                        semana: semana,
+                        banca: banca,
+                        nivel: nivel,
+                        tipo: tipo
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('Questão salva com sucesso!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/questoes';
+                    }, 2000);
+                } else {
+                    showError(result.error || 'Erro ao salvar questão');
+                }
+            } catch (error) {
+                showError('Erro de conexão: ' + error.message);
+            }
+        }
+
+        // Atalhos de teclado
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+Enter para importar
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                importarQuestao();
+            }
+            // Ctrl+L para limpar
+            if (e.ctrlKey && e.key === 'l') {
+                e.preventDefault();
+                limparCampos();
+            }
+        });
+    </script>
+</body>
+</html>

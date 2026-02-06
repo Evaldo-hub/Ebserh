@@ -1,0 +1,8 @@
+Segundo o material de estudo, os Sistemas de Informação Oficiais do Ministério da Saúde foram desenvolvidos para integrar e organizar os dados de saúde em todo o território nacional. Considerando os principais sistemas disponíveis, assinale a alternativa que descreve corretamente o funcionamento do sistema:
+
+A) O sistema que registra apenas atendimentos de emergência nos hospitais públicos.
+B) A plataforma nacional que integra dados de produção ambulatorial, hospitalar e epidemiológica.
+C) Um sistema restrito apenas para farmácias do SUS controlar medicamentos.
+D) O software utilizado exclusivamente para agendamento de consultas particulares.
+
+Gabarito: B

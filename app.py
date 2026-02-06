@@ -1,10 +1,11 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 import sqlite3
 import json
 from datetime import datetime
 import random
+import os
 
-# Importar serviço de IA
+# Importar serviços
 from ia_service import ia_service
 
 app = Flask(__name__)
@@ -56,6 +57,19 @@ def init_db():
             semana INTEGER NOT NULL UNIQUE,
             conteudo TEXT NOT NULL,
             disciplinas TEXT NOT NULL
+        )
+    ''')
+    
+    # Tabela de feedback da IA
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ia_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            questao_id INTEGER NOT NULL,
+            tipo TEXT NOT NULL,
+            conteudo TEXT NOT NULL,
+            utilidade INTEGER DEFAULT 0,
+            data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (questao_id) REFERENCES questoes (id)
         )
     ''')
     
@@ -494,6 +508,148 @@ def ia_gerar_questoes():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/test_ia')
+def test_ia():
+    """Teste simples do serviço de IA"""
+    try:
+        resultado = ia_service.explicar_erro(
+            {'enunciado': 'Teste', 'resposta_correta': 'A', 'comentario': 'Teste'},
+            'B'
+        )
+        return f"IA Service funcionando: {resultado}"
+    except Exception as e:
+        return f"Erro no IA Service: {e}"
+
+@app.route('/importar')
+def importar():
+    """Página de importação automática de questões"""
+    return render_template('importar.html')
+
+@app.route('/ia/importar_questao_texto', methods=['POST'])
+def ia_importar_questao_texto():
+    """Importa questão automaticamente a partir de texto colado"""
+    try:
+        print("DEBUG: Rota /ia/importar_questao_texto chamada")
+        
+        # Verificar se tem JSON
+        if not request.is_json:
+            print("DEBUG: Request não é JSON")
+            return jsonify({'error': 'Request deve ser JSON'}), 400
+        
+        data = request.get_json()
+        print(f"DEBUG: JSON recebido: {data}")
+        
+        if not data:
+            print("DEBUG: JSON está vazio")
+            return jsonify({'error': 'JSON está vazio'}), 400
+        
+        texto_questao = data.get('texto', '')
+        disciplina = data.get('disciplina', 'Lei 12.550/2011')
+        nivel = data.get('nivel', 'Básico')
+        semana = data.get('semana', '1')
+        banca = data.get('banca', 'CESPE')
+        tipo = data.get('tipo', 'Múltipla Escolha')
+        
+        print(f"DEBUG: texto_questao: '{texto_questao[:100]}...'")
+        print(f"DEBUG: disciplina: {disciplina}")
+        print(f"DEBUG: nivel: {nivel}")
+        print(f"DEBUG: semana: {semana}")
+        print(f"DEBUG: banca: {banca}")
+        print(f"DEBUG: tipo: {tipo}")
+        
+        if not texto_questao or texto_questao.strip() == '':
+            print("DEBUG: Texto da questão está vazio")
+            return jsonify({'error': 'Texto da questão não fornecido'}), 400
+        
+        # Importar questão usando o serviço de IA
+        print("DEBUG: Chamando ia_service.importar_questao_texto")
+        questao = ia_service.importar_questao_texto(texto_questao, disciplina, nivel)
+        
+        print(f"DEBUG: Questão parseada: {questao}")
+        
+        if not questao:
+            print("DEBUG: Não foi possível parsear a questão")
+            return jsonify({'error': 'Não foi possível parsear a questão. Verifique o formato.'}), 400
+        
+        # Adicionar metadados da questão
+        questao['semana'] = semana
+        questao['banca'] = banca
+        questao['tipo'] = tipo
+        
+        # Armazenar temporariamente para salvar depois
+        session['questao_temp'] = questao
+        
+        print("DEBUG: Questão importada com sucesso")
+        
+        return jsonify({
+            'status': 'sucesso',
+            'questao': questao,
+            'mensagem': f'Questão importada com sucesso para {disciplina} - {nivel}'
+        })
+        
+    except Exception as e:
+        print(f"DEBUG: Exceção: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/ia/salvar_questao_importada', methods=['POST'])
+def ia_salvar_questao_importada():
+    """Salva a questão importada no banco de dados"""
+    try:
+        data = request.get_json()
+        
+        # Obter questão temporária da sessão
+        questao_temp = session.get('questao_temp')
+        if not questao_temp:
+            return jsonify({'error': 'Nenhuma questão para salvar. Importe uma questão primeiro.'}), 400
+        
+        # Atualizar metadados com os dados do formulário
+        disciplina = data.get('disciplina', questao_temp.get('disciplina', 'Lei 12.550/2011'))
+        semana = data.get('semana', questao_temp.get('semana', '1'))
+        banca = data.get('banca', questao_temp.get('banca', 'CESPE'))
+        nivel = data.get('nivel', questao_temp.get('nivel', 'Básico'))
+        tipo = data.get('tipo', questao_temp.get('tipo', 'Múltipla Escolha'))
+        
+        # Salvar no banco de dados
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO questoes (
+                disciplina, semana, nivel, banca, enunciado, 
+                alternativas, resposta_correta, comentario
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            disciplina,
+            int(semana),
+            nivel,
+            banca,
+            questao_temp['enunciado'],
+            json.dumps(questao_temp['alternativas']),
+            questao_temp['resposta'],
+            questao_temp.get('comentario', 'Questão importada automaticamente')
+        ))
+        
+        questao_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        # Limpar sessão
+        session.pop('questao_temp', None)
+        
+        return jsonify({
+            'status': 'sucesso',
+            'questao_id': questao_id,
+            'mensagem': 'Questão salva com sucesso!'
+        })
+        
+    except Exception as e:
+        print(f"DEBUG: Erro ao salvar questão: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/ia/feedback', methods=['POST'])
 def ia_feedback():
     """Rota para registrar feedback do usuário sobre a IA"""
@@ -638,19 +794,6 @@ def admin_limpar_questoes_ia():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-# PWA Routes
-@app.route('/manifest.json')
-def manifest():
-    return send_from_directory('.', 'manifest.json', mimetype='application/json')
-
-@app.route('/browserconfig.xml')
-def browserconfig():
-    return send_from_directory('.', 'browserconfig.xml', mimetype='application/xml')
-
-@app.route('/static/<path:filename>')
-def static_files(filename):
-    return send_from_directory('static', filename)
 
 if __name__ == '__main__':
     init_db()
