@@ -7,6 +7,7 @@ import os
 
 # Importar serviços
 from ia_service import ia_service
+from supabase_service import supabase_service
 
 app = Flask(__name__)
 app.secret_key = 'ebserh_ti_study_key_2024'
@@ -794,6 +795,87 @@ def admin_limpar_questoes_ia():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ==================== ROTAS SUPABASE ====================
+
+@app.route('/supabase')
+def supabase_index():
+    """Página de gerenciamento do Supabase"""
+    if not supabase_service:
+        return render_template('supabase_error.html', 
+                          error="Supabase não configurado. Configure SUPABASE_URL e SUPABASE_KEY no .env")
+    
+    # Obter estatísticas
+    stats = supabase_service.get_supabase_stats()
+    return render_template('supabase_index.html', stats=stats)
+
+@app.route('/supabase/test')
+def supabase_test():
+    """Testa conexão com Supabase"""
+    if not supabase_service:
+        return jsonify({'status': 'erro', 'message': 'Supabase não configurado'})
+    
+    result = supabase_service.test_connection()
+    return jsonify(result)
+
+@app.route('/supabase/sync', methods=['POST'])
+def supabase_sync():
+    """Sincroniza dados com Supabase"""
+    if not supabase_service:
+        return jsonify({'status': 'erro', 'message': 'Supabase não configurado'})
+    
+    data = request.get_json()
+    sync_type = data.get('type', 'all')  # 'all', 'questoes', 'desempenho', 'plano_estudos', 'ia_feedback'
+    
+    try:
+        if sync_type == 'questoes':
+            result = supabase_service.sync_questoes_to_supabase()
+        elif sync_type == 'desempenho':
+            result = supabase_service.sync_desempenho_to_supabase()
+        elif sync_type == 'plano_estudos':
+            result = supabase_service.sync_plano_estudos_to_supabase()
+        elif sync_type == 'ia_feedback':
+            result = supabase_service.sync_ia_feedback_to_supabase()
+        else:  # all
+            result = supabase_service.sync_all_to_supabase()
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'status': 'erro', 'message': f'Erro na sincronização: {str(e)}'}), 500
+
+@app.route('/supabase/fix', methods=['POST'])
+def supabase_fix():
+    """Corrige as tabelas existentes no Supabase"""
+    if not supabase_service:
+        return jsonify({'status': 'erro', 'message': 'Supabase não configurado'})
+    
+    try:
+        result = supabase_service.fix_supabase_tables()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'status': 'erro', 'message': f'Erro ao corrigir: {str(e)}'}), 500
+
+@app.route('/supabase/init', methods=['POST'])
+def supabase_init():
+    """Inicializa as tabelas no Supabase"""
+    if not supabase_service:
+        return jsonify({'status': 'erro', 'message': 'Supabase não configurado'})
+    
+    try:
+        result = supabase_service.init_supabase_tables()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'status': 'erro', 'message': f'Erro ao inicializar: {str(e)}'}), 500
+
+@app.route('/supabase/stats')
+def supabase_stats():
+    """Obtém estatísticas do Supabase"""
+    if not supabase_service:
+        return jsonify({'status': 'erro', 'message': 'Supabase não configurado'})
+    
+    stats = supabase_service.get_supabase_stats()
+    return jsonify(stats)
 
 if __name__ == '__main__':
     init_db()
