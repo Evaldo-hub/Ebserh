@@ -25,87 +25,35 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <div class="card stats-card text-white">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-robot me-2"></i>
-                                        IA Feedback
-                                    </h5>
-                                    <h2 class="mb-0" id="total-ia-feedback">{{ stats.total_ia_feedback or 0 }}</h2>
-                                    <small>
-                                        {% if stats.ultima_sinc_feedback %}
-                                            Última sinc: {{ stats.ultima_sinc_feedback[:19] }}
-                                        {% else %}
-                                            Não sincronizado
-                                        {% endif %}
-                                    </small>
-                                </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h3 class="text-primary" id="total-questoes">{{ stats.total_questoes if stats else 0 }}</h3>
+                                <small class="text-muted">Questões</small>
                             </div>
                         </div>
-                        
-                        <div class="col-md-3 mb-3">
-                            <div class="card stats-card text-white">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-question-circle me-2"></i>
-                                        Questões
-                                    </h5>
-                                    <h2 class="mb-0" id="total-questoes">{{ stats.total_questoes or 0 }}</h2>
-                                    <small>
-                                        {% if stats.ultima_sinc_questoes %}
-                                            Última sinc: {{ stats.ultima_sinc_questoes[:19] }}
-                                        {% else %}
-                                            Não sincronizado
-                                        {% endif %}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-3 mb-3">
-                            <div class="card stats-card text-white">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-chart-line me-2"></i>
-                                        Desempenho
-                                    </h5>
-                                    <h2 class="mb-0" id="total-desempenho">{{ stats.total_desempenho or 0 }}</h2>
-                                    <small>
-                                        {% if stats.ultima_sinc_desempenho %}
-                                            Última sinc: {{ stats.ultima_sinc_desempenho[:19] }}
-                                        {% else %}
-                                            Não sincronizado
-                                        {% endif %}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-3 mb-3">
-                            <div class="card stats-card text-white">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-calendar-alt me-2"></i>
-                                        Plano de Estudos
-                                    </h5>
-                                    <h2 class="mb-0" id="total-plano-estudos">{{ stats.total_plano_estudos or 0 }}</h2>
-                                    <small>
-                                        {% if stats.ultima_sinc_plano %}
-                                            Última sinc: {{ stats.ultima_sinc_plano[:19] }}
-                                        {% else %}
-                                            Não sincronizado
-                                        {% endif %}
-                                    </small>
-                                </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h3 class="text-success" id="total-desempenho">{{ stats.total_desempenho if stats else 0 }}</h3>
+                                <small class="text-muted">Registros de Desempenho</small>
                             </div>
                         </div>
                     </div>
+                    
+                    {% if stats and stats.ultima_sinc_questoes %}
+                    <hr>
+                    <div class="row">
+                        <div class="col-12">
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>
+                                Última sincronização: {{ stats.ultima_sinc_questoes[:19] if stats.ultima_sinc_questoes else 'Nunca' }}
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-    </div>
-
-    <!-- Ações de Sincronização -->
-    <div class="row mb-4">
+        
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header bg-info text-white">
@@ -136,16 +84,6 @@
                             Sincronizar Apenas Desempenho
                         </button>
                         
-                        <button class="btn btn-outline-info" onclick="syncData('plano_estudos')">
-                            <i class="fas fa-calendar-alt me-2"></i>
-                            Sincronizar Plano de Estudos
-                        </button>
-                        
-                        <button class="btn btn-outline-warning" onclick="syncData('ia_feedback')">
-                            <i class="fas fa-robot me-2"></i>
-                            Sincronizar IA Feedback
-                        </button>
-                        
                         <button class="btn btn-secondary" onclick="refreshStats()">
                             <i class="fas fa-refresh me-2"></i>
                             Atualizar Estatísticas
@@ -154,11 +92,6 @@
                         <button class="btn btn-warning" onclick="initTables()">
                             <i class="fas fa-database me-2"></i>
                             Criar Tabelas
-                        </button>
-                        
-                        <button class="btn btn-danger" onclick="fixTables()">
-                            <i class="fas fa-wrench me-2"></i>
-                            Corrigir Tabelas
                         </button>
                     </div>
                 </div>
@@ -263,39 +196,6 @@ async function testConnection() {
     }
 }
 
-async function fixTables() {
-    showStatus('info', 'Corrigindo tabelas no Supabase...');
-    addLog('Iniciando correção das tabelas...');
-    
-    try {
-        const response = await fetch('/supabase/fix', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (result.status === 'info') {
-            showStatus('warning', 'Tabelas precisam ser corrigidas manualmente', 
-                      `<small class="text-muted">Copie o SQL abaixo e execute no painel SQL do Supabase:</small><br>` +
-                      `<pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px; max-height: 300px; overflow-y: auto;">${result.sql}</pre>`);
-            addLog('SQL de correção gerado para execução manual');
-        } else if (result.status === 'sucesso') {
-            showStatus('success', 'Tabelas corrigidas com sucesso!');
-            addLog('Tabelas corrigidas automaticamente', 'success');
-            refreshStats();
-        } else {
-            showStatus('danger', `Erro ao corrigir tabelas: ${result.message}`);
-            addLog(`Falha na correção: ${result.message}`, 'error');
-        }
-    } catch (error) {
-        showStatus('danger', `Erro ao corrigir tabelas: ${error.message}`);
-        addLog(`Erro na correção: ${error.message}`, 'error');
-    }
-}
-
 async function initTables() {
     showStatus('info', 'Inicializando tabelas no Supabase...');
     addLog('Iniciando criação das tabelas...');
@@ -333,9 +233,7 @@ async function syncData(type) {
     const typeNames = {
         'all': 'Todos os dados',
         'questoes': 'Apenas questões',
-        'desempenho': 'Apenas desempenho',
-        'plano_estudos': 'Plano de estudos',
-        'ia_feedback': 'IA Feedback'
+        'desempenho': 'Apenas desempenho'
     };
     
     showStatus('info', `Sincronizando ${typeNames[type]}...`);
@@ -390,16 +288,8 @@ async function refreshStats() {
         const stats = await response.json();
         
         if (stats.status === 'sucesso') {
-            const totalQuestoes = document.getElementById('total-questoes');
-            const totalDesempenho = document.getElementById('total-desempenho');
-            const totalPlanoEstudos = document.getElementById('total-plano-estudos');
-            const totalIaFeedback = document.getElementById('total-ia-feedback');
-            
-            if (totalQuestoes) totalQuestoes.textContent = stats.total_questoes || 0;
-            if (totalDesempenho) totalDesempenho.textContent = stats.total_desempenho || 0;
-            if (totalPlanoEstudos) totalPlanoEstudos.textContent = stats.total_plano_estudos || 0;
-            if (totalIaFeedback) totalIaFeedback.textContent = stats.total_ia_feedback || 0;
-            
+            document.getElementById('total-questoes').textContent = stats.total_questoes;
+            document.getElementById('total-desempenho').textContent = stats.total_desempenho;
             addLog('Estatísticas atualizadas');
         }
     } catch (error) {

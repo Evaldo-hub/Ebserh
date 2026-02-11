@@ -825,17 +825,13 @@ def supabase_sync():
         return jsonify({'status': 'erro', 'message': 'Supabase não configurado'})
     
     data = request.get_json()
-    sync_type = data.get('type', 'all')  # 'all', 'questoes', 'desempenho', 'plano_estudos', 'ia_feedback'
+    sync_type = data.get('type', 'all')  # 'all', 'questoes', 'desempenho'
     
     try:
         if sync_type == 'questoes':
             result = supabase_service.sync_questoes_to_supabase()
         elif sync_type == 'desempenho':
             result = supabase_service.sync_desempenho_to_supabase()
-        elif sync_type == 'plano_estudos':
-            result = supabase_service.sync_plano_estudos_to_supabase()
-        elif sync_type == 'ia_feedback':
-            result = supabase_service.sync_ia_feedback_to_supabase()
         else:  # all
             result = supabase_service.sync_all_to_supabase()
         
@@ -843,18 +839,6 @@ def supabase_sync():
         
     except Exception as e:
         return jsonify({'status': 'erro', 'message': f'Erro na sincronização: {str(e)}'}), 500
-
-@app.route('/supabase/fix', methods=['POST'])
-def supabase_fix():
-    """Corrige as tabelas existentes no Supabase"""
-    if not supabase_service:
-        return jsonify({'status': 'erro', 'message': 'Supabase não configurado'})
-    
-    try:
-        result = supabase_service.fix_supabase_tables()
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'status': 'erro', 'message': f'Erro ao corrigir: {str(e)}'}), 500
 
 @app.route('/supabase/init', methods=['POST'])
 def supabase_init():

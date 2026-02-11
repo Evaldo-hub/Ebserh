@@ -148,141 +148,17 @@ class SupabaseService:
         except Exception as e:
             return {'status': 'erro', 'message': f'Erro na sincronização: {str(e)}'}
     
-    def sync_plano_estudos_to_supabase(self) -> Dict:
-        """
-        Sincroniza todos os registros de plano de estudos para o Supabase
-        """
-        try:
-            conn = self.get_local_connection()
-            
-            # Buscar todos os registros de plano de estudos
-            cursor = conn.execute('SELECT * FROM plano_estudos')
-            plano_local = cursor.fetchall()
-            conn.close()
-            
-            if not plano_local:
-                return {'status': 'info', 'message': 'Nenhum registro de plano de estudos encontrado'}
-            
-            sincronizados = 0
-            erros = []
-            
-            for registro in plano_local:
-                try:
-                    # Converter para formato Supabase
-                    plano_data = {
-                        'id_local': registro['id'],
-                        'semana': registro['semana'],
-                        'conteudo': registro['conteudo'],
-                        'disciplinas': registro['disciplinas'],
-                        'data_sincronizacao': datetime.now().isoformat()
-                    }
-                    
-                    # Verificar se já existe
-                    existing = self.client.table('plano_estudos').select('id').eq('id_local', registro['id']).execute()
-                    
-                    if existing.data:
-                        # Atualizar
-                        result = self.client.table('plano_estudos').update(plano_data).eq('id_local', registro['id']).execute()
-                    else:
-                        # Inserir
-                        result = self.client.table('plano_estudos').insert(plano_data).execute()
-                    
-                    if result.data:
-                        sincronizados += 1
-                    
-                except Exception as e:
-                    erros.append(f"Registro {registro['id']}: {str(e)}")
-            
-            return {
-                'status': 'sucesso',
-                'sincronizados': sincronizados,
-                'total': len(plano_local),
-                'erros': erros
-            }
-            
-        except Exception as e:
-            return {'status': 'erro', 'message': f'Erro na sincronização: {str(e)}'}
-    
-    def sync_ia_feedback_to_supabase(self) -> Dict:
-        """
-        Sincroniza todos os registros de ia_feedback para o Supabase
-        """
-        try:
-            conn = self.get_local_connection()
-            
-            # Buscar todos os registros de ia_feedback
-            cursor = conn.execute('SELECT * FROM ia_feedback')
-            feedback_local = cursor.fetchall()
-            conn.close()
-            
-            if not feedback_local:
-                return {'status': 'info', 'message': 'Nenhum registro de ia_feedback encontrado'}
-            
-            sincronizados = 0
-            erros = []
-            
-            for registro in feedback_local:
-                try:
-                    # Converter para formato Supabase
-                    feedback_data = {
-                        'id_local': registro['id'],
-                        'questao_id_local': registro['questao_id'],
-                        'tipo': registro['tipo'],
-                        'conteudo': registro['conteudo'],
-                        'utilidade': registro['utilidade'],
-                        'data': registro['data'],
-                        'data_sincronizacao': datetime.now().isoformat()
-                    }
-                    
-                    # Verificar se já existe
-                    existing = self.client.table('ia_feedback').select('id').eq('id_local', registro['id']).execute()
-                    
-                    if existing.data:
-                        # Atualizar
-                        result = self.client.table('ia_feedback').update(feedback_data).eq('id_local', registro['id']).execute()
-                    else:
-                        # Inserir
-                        result = self.client.table('ia_feedback').insert(feedback_data).execute()
-                    
-                    if result.data:
-                        sincronizados += 1
-                    
-                except Exception as e:
-                    erros.append(f"Registro {registro['id']}: {str(e)}")
-            
-            return {
-                'status': 'sucesso',
-                'sincronizados': sincronizados,
-                'total': len(feedback_local),
-                'erros': erros
-            }
-            
-        except Exception as e:
-            return {'status': 'erro', 'message': f'Erro na sincronização: {str(e)}'}
-    
     def sync_all_to_supabase(self) -> Dict:
         """
-        Sincroniza todos os dados para o Supabase
+        Sincroniza todos os dados (questões e desempenho) para o Supabase
         """
         resultado_questoes = self.sync_questoes_to_supabase()
         resultado_desempenho = self.sync_desempenho_to_supabase()
-        resultado_plano = self.sync_plano_estudos_to_supabase()
-        resultado_feedback = self.sync_ia_feedback_to_supabase()
-        
-        # Verificar se todos foram sucesso
-        todos_sucesso = all([
-            resultado_questoes['status'] == 'sucesso',
-            resultado_desempenho['status'] == 'sucesso',
-            resultado_plano['status'] == 'sucesso',
-            resultado_feedback['status'] == 'sucesso'
-        ])
         
         return {
-            'status': 'sucesso' if todos_sucesso else 'parcial',
+            'status': 'sucesso' if resultado_questoes['status'] == 'sucesso' and resultado_desempenho['status'] == 'sucesso' else 'parcial',
             'questoes': resultado_questoes,
             'desempenho': resultado_desempenho,
-            'plano_estudos': resultado_plano,
-            'ia_feedback': resultado_feedback,
             'timestamp': datetime.now().isoformat()
         }
     
@@ -293,93 +169,26 @@ class SupabaseService:
         try:
             # Contar questões
             questoes_result = self.client.table('questoes').select('count', count='exact').execute()
-            total_questoes = questoes_result.count or 0
+            total_questoes = questoes_result.count if hasattr(questoes_result, 'count') else 0
             
             # Contar desempenho
             desempenho_result = self.client.table('desempenho').select('count', count='exact').execute()
-            total_desempenho = desempenho_result.count or 0
+            total_desempenho = desempenho_result.count if hasattr(desempenho_result, 'count') else 0
             
-            # Contar plano de estudos
-            plano_result = self.client.table('plano_estudos').select('count', count='exact').execute()
-            total_plano = plano_result.count or 0
-            
-            # Contar ia_feedback
-            feedback_result = self.client.table('ia_feedback').select('count', count='exact').execute()
-            total_feedback = feedback_result.count or 0
-            
-            # Obter última sincronização
+            # Obter últimas sincronizações
             ultimas_questoes = self.client.table('questoes').select('data_sincronizacao').order('data_sincronizacao', desc=True).limit(1).execute()
             ult_desempenho = self.client.table('desempenho').select('data_sincronizacao').order('data_sincronizacao', desc=True).limit(1).execute()
-            ult_plano = self.client.table('plano_estudos').select('data_sincronizacao').order('data_sincronizacao', desc=True).limit(1).execute()
-            ult_feedback = self.client.table('ia_feedback').select('data_sincronizacao').order('data_sincronizacao', desc=True).limit(1).execute()
             
             return {
                 'status': 'sucesso',
                 'total_questoes': total_questoes,
                 'total_desempenho': total_desempenho,
-                'total_plano_estudos': total_plano,
-                'total_ia_feedback': total_feedback,
                 'ultima_sinc_questoes': ultimas_questoes.data[0]['data_sincronizacao'] if ultimas_questoes.data else None,
-                'ultima_sinc_desempenho': ult_desempenho.data[0]['data_sincronizacao'] if ult_desempenho.data else None,
-                'ultima_sinc_plano': ult_plano.data[0]['data_sincronizacao'] if ult_plano.data else None,
-                'ultima_sinc_feedback': ult_feedback.data[0]['data_sincronizacao'] if ult_feedback.data else None
+                'ultima_sinc_desempenho': ult_desempenho.data[0]['data_sincronizacao'] if ult_desempenho.data else None
             }
             
         except Exception as e:
             return {'status': 'erro', 'message': f'Erro ao obter estatísticas: {str(e)}'}
-    
-    def fix_supabase_tables(self) -> Dict:
-        """
-        Corrige as tabelas existentes adicionando colunas faltantes
-        """
-        try:
-            # SQL para corrigir as tabelas
-            fix_tables_sql = """
-            -- Adicionar colunas faltantes na tabela questoes
-            ALTER TABLE questoes ADD COLUMN IF NOT EXISTS id_local INTEGER;
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_questoes_id_local ON questoes(id_local);
-            
-            -- Adicionar colunas faltantes na tabela desempenho
-            ALTER TABLE desempenho ADD COLUMN IF NOT EXISTS id_local INTEGER;
-            ALTER TABLE desempenho ADD COLUMN IF NOT EXISTS questao_id_local INTEGER;
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_desempenho_id_local ON desempenho(id_local);
-            CREATE INDEX IF NOT EXISTS idx_desempenho_questao_id_local ON desempenho(questao_id_local);
-            
-            -- Adicionar colunas faltantes na tabela plano_estudos
-            ALTER TABLE plano_estudos ADD COLUMN IF NOT EXISTS id_local INTEGER;
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_plano_estudos_id_local ON plano_estudos(id_local);
-            
-            -- Adicionar colunas faltantes na tabela ia_feedback
-            ALTER TABLE ia_feedback ADD COLUMN IF NOT EXISTS id_local INTEGER;
-            ALTER TABLE ia_feedback ADD COLUMN IF NOT EXISTS questao_id_local INTEGER;
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_ia_feedback_id_local ON ia_feedback(id_local);
-            CREATE INDEX IF NOT EXISTS idx_ia_feedback_questao_id_local ON ia_feedback(questao_id_local);
-            
-            -- Adicionar colunas de sincronizacao
-            ALTER TABLE questoes ADD COLUMN IF NOT EXISTS data_sincronizacao TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            ALTER TABLE desempenho ADD COLUMN IF NOT EXISTS data_sincronizacao TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            ALTER TABLE plano_estudos ADD COLUMN IF NOT EXISTS data_sincronizacao TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            ALTER TABLE ia_feedback ADD COLUMN IF NOT EXISTS data_sincronizacao TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            
-            -- Adicionar timestamps created_at e updated_at
-            ALTER TABLE questoes ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            ALTER TABLE questoes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            ALTER TABLE desempenho ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            ALTER TABLE desempenho ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            ALTER TABLE plano_estudos ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            ALTER TABLE plano_estudos ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            ALTER TABLE ia_feedback ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            ALTER TABLE ia_feedback ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-            """
-            
-            return {
-                'status': 'info',
-                'message': 'Tabelas precisam ser corrigidas manualmente',
-                'sql': fix_tables_sql
-            }
-            
-        except Exception as e:
-            return {'status': 'erro', 'message': f'Erro ao gerar SQL de correção: {str(e)}'}
     
     def init_supabase_tables(self) -> Dict:
         """
@@ -412,33 +221,7 @@ class SupabaseService:
                 questao_id_local INTEGER NOT NULL,
                 resposta_usuario TEXT NOT NULL,
                 acerto BOOLEAN NOT NULL,
-                data_resposta TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                data_sincronizacao TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            );
-            
-            -- Criar tabela de plano de estudos se não existir
-            CREATE TABLE IF NOT EXISTS plano_estudos (
-                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-                id_local INTEGER UNIQUE,
-                semana INTEGER NOT NULL UNIQUE,
-                conteudo TEXT NOT NULL,
-                disciplinas TEXT NOT NULL,
-                data_sincronizacao TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            );
-            
-            -- Criar tabela de ia_feedback se não existir
-            CREATE TABLE IF NOT EXISTS ia_feedback (
-                id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-                id_local INTEGER UNIQUE,
-                questao_id_local INTEGER NOT NULL,
-                tipo TEXT NOT NULL,
-                conteudo TEXT NOT NULL,
-                utilidade INTEGER DEFAULT 0,
-                data TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                data_resposta TIMESTAMP WITH TIME ZONE,
                 data_sincronizacao TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -465,14 +248,13 @@ class SupabaseService:
             return {
                 'status': 'sucesso',
                 'message': 'Conexão com Supabase estabelecida com sucesso',
-                'count': result.count
+                'questoes_no_supabase': result.count if hasattr(result, 'count') else 0
             }
         except Exception as e:
-            return {'status': 'erro', 'message': f'Erro na conexão com Supabase: {str(e)}'}
+            return {
+                'status': 'erro',
+                'message': f'Erro na conexão com Supabase: {str(e)}'
+            }
 
-# Inicialização do serviço
-try:
-    supabase_service = SupabaseService()
-except Exception as e:
-    supabase_service = None
-    print(f"Erro ao inicializar Supabase: {e}")
+# Instância global do serviço
+supabase_service = SupabaseService() if os.getenv('SUPABASE_URL') and os.getenv('SUPABASE_KEY') else None
