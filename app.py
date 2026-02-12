@@ -17,7 +17,19 @@ def from_json(value):
     return json.loads(value)
 
 # Configuração do banco de dados
-DB_NAME = 'ebserh_study.db'
+# DB_NAME = 'ebserh_study.db'
+import psycopg2
+import os
+
+def get_connection():
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST"),
+        database=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        port=5432
+    )
+
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -41,7 +53,7 @@ def init_db():
     # Tabela de desempenho
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS desempenho (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id bigserial primary key,
             questao_id INTEGER NOT NULL,
             resposta_usuario TEXT NOT NULL,
             acerto BOOLEAN NOT NULL,
@@ -53,7 +65,7 @@ def init_db():
     # Tabela do plano de estudos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS plano_estudos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id Ibigserial primary key,
             semana INTEGER NOT NULL UNIQUE,
             conteudo TEXT NOT NULL,
             disciplinas TEXT NOT NULL
@@ -63,7 +75,7 @@ def init_db():
     # Tabela de feedback da IA
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS ia_feedback (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id bigserial primary key,
             questao_id INTEGER NOT NULL,
             tipo TEXT NOT NULL,
             conteudo TEXT NOT NULL,

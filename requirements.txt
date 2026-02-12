@@ -1,6 +1,7 @@
 Flask==3.1.2
 gunicorn==23.0.0
 openai>=1.30.0
+psycopg2-binary
 faiss-cpu
 pypdf2
 python-dotenv
