@@ -4,12 +4,27 @@ import json
 from datetime import datetime
 import random
 import os
+from functools import wraps
+import secrets
+from supabase_service import supabase_service
 
 # Importar serviços
 from ia_service import ia_service
 
+# Configuração do banco de dados
+DB_NAME = os.getenv('DB_NAME', 'ebserh_study.db')
+
+# Configuração Flask
 app = Flask(__name__)
-app.secret_key = 'ebserh_ti_study_key_2024'
+app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
+
+# Configuração de ambiente
+if os.getenv('FLASK_ENV') == 'production':
+    app.config['DEBUG'] = False
+    app.config['TESTING'] = False
+else:
+    app.config['DEBUG'] = True
+    app.config['TESTING'] = True
 
 # Adicionar filtro personalizado para JSON
 @app.template_filter('from_json')
@@ -103,6 +118,15 @@ def plano():
     plano = conn.execute('SELECT * FROM plano_estudos ORDER BY semana').fetchall()
     conn.close()
     return render_template('plano.html', plano=plano)
+
+@app.route('/health')
+def health_check():
+    """Health check para Render"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'environment': os.getenv('FLASK_ENV', 'development')
+    }), 200
 
 @app.route('/questoes')
 def questoes():

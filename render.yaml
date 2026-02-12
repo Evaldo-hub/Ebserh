@@ -1,98 +1,26 @@
 services:
-  # Web Service
+  # Serviço Web Principal
   - type: web
-    name: ebserh-ti-study
+    name: ebserh-study
     env: python
     plan: free
-    buildCommand: "chmod +x build.sh && ./build.sh"
-    startCommand: "python app_production.py"
-    
-    # Python version específica
-    runtime: python
-    
-    # Variáveis de ambiente
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
     envVars:
-      # Configurações básicas
       - key: FLASK_ENV
         value: production
-      - key: SECRET_KEY
-        generateValue: true
+      - key: SUPABASE_URL
+        value: https://db.xlqcjfcfbehcgkkpyrde.supabase.co
+      - key: SUPABASE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRiLmhscWNqZmNmYmVoY2dra3B5cmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY0NzI5MDAsImV4cCI6MjA1MjA0ODkwMH0.7wYkQhE5L3k8XqJ9X2mF4P6vR7sT1nW2pY3zK4V8c
       - key: PORT
-        value: 10000
-      - key: PYTHON_VERSION
-        value: "3.11"
-      - key: PYTHONUNBUFFERED
-        value: "1"
-      
-      # Configurações do Render
-      - key: RENDER_SERVICE_ID
-        sync: false
-      - key: RENDER_EXTERNAL_URL
-        sync: false
-      - key: RENDER_EXTERNAL_HOSTNAME
-        sync: false
-      
-      # Configurações de banco (serão preenchidas automaticamente)
-      - key: DATABASE_URL
-        fromDatabase:
-          name: ebserh-ti-db
-          property: connectionString
-      
-      # Configurações de performance
-      - key: WEB_CONCURRENCY
-        value: 1
-      - key: TIMEOUT
-        value: 30
-
-  # PostgreSQL Database
-  - type: pserv
-    name: ebserh-ti-db
-    plan: free
-    databaseName: ebserh_study
+        value: 5000
+    healthCheckPath: /health
+    autoDeploy: true
     
-    # Configurações do PostgreSQL
-    envVars:
-      - key: POSTGRES_USER
-        value: ebserh_user
-      - key: POSTGRES_PASSWORD
-        generateValue: true
-      - key: POSTGRES_DB
-        value: ebserh_study
-
-# Configurações de build
-build:
-  # Python version
-  pythonVersion: "3.11"
-  
-  # Dependencies
-  requirementsPath: requirements.txt
-  
-  # Build hooks
-  preBuild:
-    - "echo 'Iniciando build do EBSERH TI Study App'"
-    - "python --version"
-    - "pip --version"
-  
-  postBuild:
-    - "echo 'Verificando instalação das dependências'"
-    - "python -c 'import flask; print(\"Flask version:\", flask.__version__)'"
-    - "python -c 'import psycopg2; print(\"psycopg2 instalado com sucesso\")'"
-    - "python -c 'from database import init_db; init_db()'"
-    - "echo 'Banco de dados inicializado com sucesso'"
-
-# Configurações de domínio (opcional)
-# domains:
-#   - name: ebserh-ti.yourdomain.com
-
-# Configurações de health check
-healthCheckPath: /health
-
-# Configurações de deploy
-autoDeploy: true
-
-# Configurações de escalabilidade (para planos pagos)
-# scaling:
-#   minInstances: 1
-#   maxInstances: 3
-#   targetMemoryPercent: 70
-#   targetCPUUtilization: 65
+  # Serviço de Banco de Dados (opcional - se quiser PostgreSQL direto)
+  # - type: pserv
+  #   name: ebserh-db
+  #   plan: free
+  #   databaseName: ebserh
+  #   user: ebserh_user
