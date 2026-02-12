@@ -7,23 +7,34 @@ import os
 from functools import wraps
 import secrets
 from supabase_service import supabase_service
+from flask_sqlalchemy import SQLAlchemy
 
 # Importar serviços
 from ia_service import ia_service
 
-# Supabase Configuration
-SUPABASE_URL = os.getenv('SUPABASE_URL', 'https://xlqcjfcfbehcgkkpyrde.supabase.co')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRiLmhscWNqZmNmYmVoY2dra3B5cmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY0NzI5MDAsImV4cCI6MjA1MjA0ODkwMH0.7wYkQhE5L3k8XqJ9X2mF4P6vR7sT1nW2pY3zK4V8c')
+# ================= BANCO DE DADOS =================
+db_url = os.environ.get("DATABASE_URL")
 
-# PostgreSQL Supabase (Produção)
-DB_HOST = os.getenv('DB_HOST', 'aws-1-sa-east-1.pooler.supabase.com')
-DB_NAME = os.getenv('DB_NAME', 'postgres')
-DB_USER = os.getenv('DB_USER', 'postgres.texwhpgiaazpyosctjia')
-DB_PASSWORD = os.getenv('DB_PASSWORD', '@Neia171427')
+# 🔥 CORREÇÃO AQUI
+if db_url:
+    db_url = db_url.strip()
 
-# Configuração Flask
+# Permite rodar local com SQLite
+if not db_url:
+    db_url = "sqlite:///ebserh_study.db"
+    print("DATABASE_URL nao encontrada. Usando SQLite local.")
+
+# Corrige padrão antigo do Render
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
 app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
+
+# Inicializar SQLAlchemy
+db = SQLAlchemy(app)
 
 # Configuração de ambiente
 if os.getenv('FLASK_ENV') == 'production':
@@ -38,104 +49,26 @@ else:
 def from_json(value):
     return json.loads(value)
 
-# Configuração do banco de dados
-if os.getenv('FLASK_ENV') == 'production':
-    # PostgreSQL do Supabase em produção
-    import psycopg2
-    from psycopg2.extras import RealDictCursor
-    
-    def get_db_connection():
-        return psycopg2.connect(
-            host=os.getenv("DB_HOST"),
-            database=os.getenv("DB_NAME"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            port=5432
-        )
-    
-    def init_db():
-        # PostgreSQL não precisa criar tabelas se já existirem
-        pass
-    
-    DB_TYPE = 'postgresql'
-else:
-    # SQLite local para desenvolvimento
-    DB_NAME = os.getenv('DB_NAME', 'ebserh_study.db')
-    
-    def get_db_connection():
-        conn = sqlite3.connect(DB_NAME)
-        conn.row_factory = sqlite3.Row
-        return conn
-    
-    def init_db():
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        
-        # Tabela de questões
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS questoes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                disciplina TEXT NOT NULL,
-                semana INTEGER NOT NULL,
-                nivel TEXT NOT NULL CHECK (nivel IN ('Básico', 'Alto', 'Pegadinha')),
-                banca TEXT NOT NULL,
-                enunciado TEXT NOT NULL,
-                alternativas TEXT NOT NULL,
-                resposta_correta TEXT NOT NULL,
-                comentario TEXT NOT NULL
-            )
-        ''')
-        
-        # Tabela de desempenho
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS desempenho (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                questao_id INTEGER NOT NULL,
-                resposta_usuario TEXT NOT NULL,
-                acerto BOOLEAN NOT NULL,
-                data_resposta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (questao_id) REFERENCES questoes (id)
-            )
-        ''')
-        
-        # Tabela do plano de estudos
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS plano_estudos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                semana INTEGER NOT NULL UNIQUE,
-                conteudo TEXT NOT NULL,
-                disciplinas TEXT NOT NULL
-            )
-        ''')
-        
-        # Tabela de feedback da IA
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS ia_feedback (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                questao_id INTEGER NOT NULL,
-                tipo TEXT NOT NULL,
-                conteudo TEXT NOT NULL,
-                utilidade INTEGER DEFAULT 0,
-                data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (questao_id) REFERENCES questoes (id)
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
-    
-    DB_TYPE = 'sqlite'
-
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/plano')
 def plano():
-    conn = get_db_connection()
-    plano = conn.execute('SELECT * FROM plano_estudos ORDER BY semana').fetchall()
-    conn.close()
-    return render_template('plano.html', plano=plano)
+    try:
+        if db_url.startswith('sqlite'):
+            # SQLite local
+            conn = sqlite3.connect("ebserh_study.db")
+            plano = conn.execute('SELECT * FROM plano_estudos ORDER BY semana').fetchall()
+            conn.close()
+        else:
+            # PostgreSQL via SQLAlchemy
+            result = db.session.execute(db.text('SELECT * FROM plano_estudos ORDER BY semana'))
+            plano = result.fetchall()
+        
+        return render_template('plano.html', plano=plano)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/health')
 def health_check():

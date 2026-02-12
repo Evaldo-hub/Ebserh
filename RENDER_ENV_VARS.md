@@ -16,26 +16,26 @@ PORT=5000
 HOST=0.0.0.0
 ```
 
-### 🗄️ Supabase Sync
+### 🌐 Database URL (Principal)
+
+```
+DATABASE_URL=postgresql://postgres.texwhpgiaazpyosctjia:@Neia171427@aws-1-sa-east-1.pooler.supabase.com:5432/postgres
+```
+
+### 🗄️ Supabase Sync (Opcional)
 
 ```
 SUPABASE_URL=https://xlqcjfcfbehcgkkpyrde.supabase.co
 SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRiLmhscWNqZmNmYmVoY2dra3B5cmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY0NzI5MDAsImV4cCI6MjA1MjA0ODkwMH0.7wYkQhE5L3k8XqJ9X2mF4P6vR7sT1nW2pY3zK4V8c
 ```
 
-### 🐘 PostgreSQL Supabase (Produção)
+### 🐘 PostgreSQL Supabase (Alternativo)
 
 ```
 DB_HOST=aws-1-sa-east-1.pooler.supabase.com
 DB_NAME=postgres
 DB_USER=postgres.texwhpgiaazpyosctjia
 DB_PASSWORD=@Neia171427
-```
-
-### 🌐 Opcional: Database URL
-
-```
-DATABASE_URL=postgresql://postgres.texwhpgiaazpyosctjia:@Neia171427@aws-1-sa-east-1.pooler.supabase.com:5432/postgres
 ```
 
 ## 🚀 Como Configurar Passo a Passo
