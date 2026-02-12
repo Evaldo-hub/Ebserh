@@ -11,8 +11,15 @@ from supabase_service import supabase_service
 # Importar serviços
 from ia_service import ia_service
 
-# Configuração do banco de dados
-DB_NAME = os.getenv('DB_NAME', 'ebserh_study.db')
+# Supabase Configuration
+SUPABASE_URL = os.getenv('SUPABASE_URL', 'https://xlqcjfcfbehcgkkpyrde.supabase.co')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRiLmhscWNqZmNmYmVoY2dra3B5cmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY0NzI5MDAsImV4cCI6MjA1MjA0ODkwMH0.7wYkQhE5L3k8XqJ9X2mF4P6vR7sT1nW2pY3zK4V8c')
+
+# PostgreSQL Supabase (Produção)
+DB_HOST = os.getenv('DB_HOST', 'aws-1-sa-east-1.pooler.supabase.com')
+DB_NAME = os.getenv('DB_NAME', 'postgres')
+DB_USER = os.getenv('DB_USER', 'postgres.texwhpgiaazpyosctjia')
+DB_PASSWORD = os.getenv('DB_PASSWORD', '@Neia171427')
 
 # Configuração Flask
 app = Flask(__name__)
@@ -32,81 +39,92 @@ def from_json(value):
     return json.loads(value)
 
 # Configuração do banco de dados
-# DB_NAME = 'ebserh_study.db'
-import psycopg2
-import os
-
-def get_connection():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        database=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        port=5432
-    )
-
-
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+if os.getenv('FLASK_ENV') == 'production':
+    # PostgreSQL do Supabase em produção
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
     
-    # Tabela de questões
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS questoes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            disciplina TEXT NOT NULL,
-            semana INTEGER NOT NULL,
-            nivel TEXT NOT NULL CHECK (nivel IN ('Básico', 'Alto', 'Pegadinha')),
-            banca TEXT NOT NULL,
-            enunciado TEXT NOT NULL,
-            alternativas TEXT NOT NULL,
-            resposta_correta TEXT NOT NULL,
-            comentario TEXT NOT NULL
+    def get_db_connection():
+        return psycopg2.connect(
+            host=os.getenv("DB_HOST"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            port=5432
         )
-    ''')
     
-    # Tabela de desempenho
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS desempenho (
-            id bigserial primary key,
-            questao_id INTEGER NOT NULL,
-            resposta_usuario TEXT NOT NULL,
-            acerto BOOLEAN NOT NULL,
-            data_resposta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (questao_id) REFERENCES questoes (id)
-        )
-    ''')
+    def init_db():
+        # PostgreSQL não precisa criar tabelas se já existirem
+        pass
     
-    # Tabela do plano de estudos
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS plano_estudos (
-            id Ibigserial primary key,
-            semana INTEGER NOT NULL UNIQUE,
-            conteudo TEXT NOT NULL,
-            disciplinas TEXT NOT NULL
-        )
-    ''')
+    DB_TYPE = 'postgresql'
+else:
+    # SQLite local para desenvolvimento
+    DB_NAME = os.getenv('DB_NAME', 'ebserh_study.db')
     
-    # Tabela de feedback da IA
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ia_feedback (
-            id bigserial primary key,
-            questao_id INTEGER NOT NULL,
-            tipo TEXT NOT NULL,
-            conteudo TEXT NOT NULL,
-            utilidade INTEGER DEFAULT 0,
-            data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (questao_id) REFERENCES questoes (id)
-        )
-    ''')
+    def get_db_connection():
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        return conn
     
-    conn.commit()
-    conn.close()
-
-def get_db_connection():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    return conn
+    def init_db():
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        
+        # Tabela de questões
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS questoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                disciplina TEXT NOT NULL,
+                semana INTEGER NOT NULL,
+                nivel TEXT NOT NULL CHECK (nivel IN ('Básico', 'Alto', 'Pegadinha')),
+                banca TEXT NOT NULL,
+                enunciado TEXT NOT NULL,
+                alternativas TEXT NOT NULL,
+                resposta_correta TEXT NOT NULL,
+                comentario TEXT NOT NULL
+            )
+        ''')
+        
+        # Tabela de desempenho
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS desempenho (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                questao_id INTEGER NOT NULL,
+                resposta_usuario TEXT NOT NULL,
+                acerto BOOLEAN NOT NULL,
+                data_resposta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (questao_id) REFERENCES questoes (id)
+            )
+        ''')
+        
+        # Tabela do plano de estudos
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS plano_estudos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                semana INTEGER NOT NULL UNIQUE,
+                conteudo TEXT NOT NULL,
+                disciplinas TEXT NOT NULL
+            )
+        ''')
+        
+        # Tabela de feedback da IA
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ia_feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                questao_id INTEGER NOT NULL,
+                tipo TEXT NOT NULL,
+                conteudo TEXT NOT NULL,
+                utilidade INTEGER DEFAULT 0,
+                data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (questao_id) REFERENCES questoes (id)
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+    
+    DB_TYPE = 'sqlite'
 
 @app.route('/')
 def index():
