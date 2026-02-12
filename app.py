@@ -36,6 +36,85 @@ app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 # Inicializar SQLAlchemy
 db = SQLAlchemy(app)
 
+def init_db():
+    """Inicializa o banco de dados"""
+    try:
+        if db_url.startswith('sqlite'):
+            # SQLite local
+            conn = sqlite3.connect("ebserh_study.db")
+            cursor = conn.cursor()
+            
+            # Tabela de questões
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS questoes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    disciplina TEXT NOT NULL,
+                    semana INTEGER NOT NULL,
+                    nivel TEXT NOT NULL CHECK (nivel IN ('Básico', 'Alto', 'Pegadinha')),
+                    banca TEXT NOT NULL,
+                    enunciado TEXT NOT NULL,
+                    alternativas TEXT NOT NULL,
+                    resposta_correta TEXT NOT NULL,
+                    comentario TEXT NOT NULL
+                )
+            ''')
+            
+            # Tabela de desempenho
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS desempenho (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    questao_id INTEGER NOT NULL,
+                    resposta_usuario TEXT NOT NULL,
+                    acerto BOOLEAN NOT NULL,
+                    data_resposta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (questao_id) REFERENCES questoes (id)
+                )
+            ''')
+            
+            # Tabela do plano de estudos
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS plano_estudos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    semana INTEGER NOT NULL UNIQUE,
+                    conteudo TEXT NOT NULL,
+                    disciplinas TEXT NOT NULL
+                )
+            ''')
+            
+            # Tabela de feedback da IA
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS ia_feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    questao_id INTEGER NOT NULL,
+                    tipo TEXT NOT NULL,
+                    conteudo TEXT NOT NULL,
+                    utilidade INTEGER DEFAULT 0,
+                    data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (questao_id) REFERENCES questoes (id)
+                )
+            ''')
+            
+            conn.commit()
+            conn.close()
+            print("Banco SQLite inicializado com sucesso!")
+            
+        else:
+            # PostgreSQL - SQLAlchemy cria tabelas automaticamente
+            print("Usando PostgreSQL - SQLAlchemy gerenciará as tabelas")
+            
+    except Exception as e:
+        print(f"Erro ao inicializar banco: {e}")
+
+def get_db_connection():
+    """Obtém conexão com o banco de dados correto"""
+    if db_url.startswith('sqlite'):
+        conn = sqlite3.connect("ebserh_study.db")
+        conn.row_factory = sqlite3.Row
+        return conn
+    else:
+        # PostgreSQL via SQLAlchemy
+        return db
+
 # Configuração de ambiente
 if os.getenv('FLASK_ENV') == 'production':
     app.config['DEBUG'] = False
@@ -56,14 +135,16 @@ def index():
 @app.route('/plano')
 def plano():
     try:
+        conn = get_db_connection()
+        
         if db_url.startswith('sqlite'):
             # SQLite local
-            conn = sqlite3.connect("ebserh_study.db")
             plano = conn.execute('SELECT * FROM plano_estudos ORDER BY semana').fetchall()
             conn.close()
         else:
             # PostgreSQL via SQLAlchemy
-            result = db.session.execute(db.text('SELECT * FROM plano_estudos ORDER BY semana'))
+            from sqlalchemy import text
+            result = conn.session.execute(text('SELECT * FROM plano_estudos ORDER BY semana'))
             plano = result.fetchall()
         
         return render_template('plano.html', plano=plano)
@@ -599,28 +680,56 @@ def ia_salvar_questao_importada():
         tipo = data.get('tipo', questao_temp.get('tipo', 'Múltipla Escolha'))
         
         # Salvar no banco de dados
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
+        if db_url.startswith('sqlite'):
+            # SQLite local
+            conn = sqlite3.connect("ebserh_study.db")
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT INTO questoes (
+                    disciplina, semana, nivel, banca, enunciado, 
+                    alternativas, resposta_correta, comentario
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                disciplina,
+                int(semana),
+                nivel,
+                banca,
+                questao_temp['enunciado'],
+                json.dumps(questao_temp['alternativas']),
+                questao_temp['resposta'],
+                questao_temp.get('comentario', 'Questão importada automaticamente')
+            ))
+            
+            conn.commit()
+            conn.close()
+        else:
+            # PostgreSQL via SQLAlchemy
+            from sqlalchemy import text
+            result = db.session.execute(text('''
+                INSERT INTO questoes (
+                    disciplina, semana, nivel, banca, enunciado, 
+                    alternativas, resposta_correta, comentario
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            '''), (
+                disciplina,
+                int(semana),
+                nivel,
+                banca,
+                questao_temp['enunciado'],
+                json.dumps(questao_temp['alternativas']),
+                questao_temp['resposta'],
+                questao_temp.get('comentario', 'Questão importada automaticamente')
+            ))
+            db.session.commit()
         
-        cursor.execute('''
-            INSERT INTO questoes (
-                disciplina, semana, nivel, banca, enunciado, 
-                alternativas, resposta_correta, comentario
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            disciplina,
-            int(semana),
-            nivel,
-            banca,
-            questao_temp['enunciado'],
-            json.dumps(questao_temp['alternativas']),
-            questao_temp['resposta'],
-            questao_temp.get('comentario', 'Questão importada automaticamente')
-        ))
-        
-        questao_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
+        # Obter ID da questão inserida
+        if db_url.startswith('sqlite'):
+            questao_id = cursor.lastrowid
+        else:
+            # PostgreSQL - obter o último ID inserido
+            result = db.session.execute(text('SELECT lastval()'))
+            questao_id = result.scalar()
         
         # Limpar sessão
         session.pop('questao_temp', None)
