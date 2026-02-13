@@ -166,50 +166,100 @@ def questoes():
     semana = request.args.get('semana', '')
     nivel = request.args.get('nivel', '')
     
-    conn = get_db_connection()
-    query = 'SELECT DISTINCT disciplina FROM questoes ORDER BY disciplina'
-    disciplinas = conn.execute(query).fetchall()
-    
-    query = 'SELECT DISTINCT semana FROM questoes ORDER BY semana'
-    semanas = conn.execute(query).fetchall()
-    
-    # Construir query de questões com filtros
-    query = 'SELECT * FROM questoes WHERE 1=1'
-    params = []
-    
-    if disciplina:
-        query += ' AND disciplina = ?'
-        params.append(disciplina)
-    
-    if semana:
-        query += ' AND semana = ?'
-        params.append(semana)
-    
-    if nivel:
-        query += ' AND nivel = ?'
-        params.append(nivel)
-    
-    query += ' ORDER BY disciplina, semana, nivel'
-    
-    questoes = conn.execute(query, params).fetchall()
-    conn.close()
-    
-    return render_template('questoes.html', 
-                         questoes=questoes, 
-                         disciplinas=disciplinas,
-                         semanas=semanas,
-                         filtros={'disciplina': disciplina, 'semana': semana, 'nivel': nivel})
+    try:
+        if db_url.startswith('sqlite'):
+            # SQLite local
+            conn = get_db_connection()
+            query = 'SELECT DISTINCT disciplina FROM questoes ORDER BY disciplina'
+            disciplinas = conn.execute(query).fetchall()
+            
+            query = 'SELECT DISTINCT semana FROM questoes ORDER BY semana'
+            semanas = conn.execute(query).fetchall()
+            
+            # Construir query de questões com filtros
+            query = 'SELECT * FROM questoes WHERE 1=1'
+            params = []
+            
+            if disciplina:
+                query += ' AND disciplina = ?'
+                params.append(disciplina)
+            
+            if semana:
+                query += ' AND semana = ?'
+                params.append(semana)
+            
+            if nivel:
+                query += ' AND nivel = ?'
+                params.append(nivel)
+            
+            query += ' ORDER BY disciplina, semana, nivel'
+            
+            questoes = conn.execute(query, params).fetchall()
+            conn.close()
+            
+        else:
+            # PostgreSQL via SQLAlchemy
+            from sqlalchemy import text
+            
+            # Obter disciplinas
+            result = db.session.execute(text('SELECT DISTINCT disciplina FROM questoes ORDER BY disciplina'))
+            disciplinas = result.fetchall()
+            
+            # Obter semanas
+            result = db.session.execute(text('SELECT DISTINCT semana FROM questoes ORDER BY semana'))
+            semanas = result.fetchall()
+            
+            # Construir query de questões com filtros
+            query = 'SELECT * FROM questoes WHERE 1=1'
+            params = []
+            
+            if disciplina:
+                query += ' AND disciplina = :disciplina'
+                params['disciplina'] = disciplina
+            
+            if semana:
+                query += ' AND semana = :semana'
+                params['semana'] = semana
+            
+            if nivel:
+                query += ' AND nivel = :nivel'
+                params['nivel'] = nivel
+            
+            query += ' ORDER BY disciplina, semana, nivel'
+            
+            result = db.session.execute(text(query), params)
+            questoes = result.fetchall()
+        
+        return render_template('questoes.html', 
+                             questoes=questoes, 
+                             disciplinas=disciplinas,
+                             semanas=semanas,
+                             filtros={'disciplina': disciplina, 'semana': semana, 'nivel': nivel})
+                             
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/questao/<int:questao_id>')
 def questao_detalhe(questao_id):
-    conn = get_db_connection()
-    questao = conn.execute('SELECT * FROM questoes WHERE id = ?', (questao_id,)).fetchone()
-    conn.close()
-    
-    if questao is None:
-        return "Questão não encontrada", 404
-    
-    return render_template('questao.html', questao=questao)
+    try:
+        if db_url.startswith('sqlite'):
+            # SQLite local
+            conn = get_db_connection()
+            questao = conn.execute('SELECT * FROM questoes WHERE id = ?', (questao_id,)).fetchone()
+            conn.close()
+        else:
+            # PostgreSQL via SQLAlchemy
+            from sqlalchemy import text
+            result = db.session.execute(text('SELECT * FROM questoes WHERE id = :id'), {'id': questao_id})
+            questao = result.fetchone()
+        
+        if questao is None:
+            return "Questão não encontrada", 404
+        
+        return render_template('questao.html', questao=questao)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/responder', methods=['POST'])
 def responder_questao():
