@@ -115,6 +115,63 @@ def get_db_connection():
         # PostgreSQL via SQLAlchemy
         return db
 
+def execute_query(query, params=None, fetch_one=False, fetch_all=True):
+    """Executa query de forma consistente em SQLite e PostgreSQL"""
+    try:
+        if db_url.startswith('sqlite'):
+            # SQLite local
+            conn = sqlite3.connect("ebserh_study.db")
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            if params is None:
+                result = cursor.execute(query)
+            else:
+                result = cursor.execute(query, params)
+            
+            if fetch_one:
+                data = result.fetchone()
+            elif fetch_all:
+                data = result.fetchall()
+            else:
+                data = result.rowcount if hasattr(result, 'rowcount') else 0
+            
+            conn.close()
+            return data
+        else:
+            # PostgreSQL via SQLAlchemy
+            from sqlalchemy import text
+            
+            if params is None:
+                result = db.session.execute(text(query))
+            else:
+                # Garantir que params seja dicionário para PostgreSQL
+                if isinstance(params, list):
+                    # Converter lista para dicionário baseado em posição
+                    param_dict = {}
+                    for i, param in enumerate(params):
+                        param_dict[f'param_{i}'] = param
+                    # Substituir ? por :param_i na query
+                    pg_query = query
+                    for i in range(len(params)):
+                        pg_query = pg_query.replace('?', f':param_{i}', 1)
+                    result = db.session.execute(text(pg_query), param_dict)
+                else:
+                    result = db.session.execute(text(query), params)
+            
+            if fetch_one:
+                data = result.fetchone()
+            elif fetch_all:
+                data = result.fetchall()
+            else:
+                data = result.rowcount if hasattr(result, 'rowcount') else 0
+            
+            return data
+            
+    except Exception as e:
+        print(f"Erro na query: {query}, params: {params}, erro: {e}")
+        raise e
+
 # Configuração de ambiente
 if os.getenv('FLASK_ENV') == 'production':
     app.config['DEBUG'] = False
@@ -135,18 +192,7 @@ def index():
 @app.route('/plano')
 def plano():
     try:
-        conn = get_db_connection()
-        
-        if db_url.startswith('sqlite'):
-            # SQLite local
-            plano = conn.execute('SELECT * FROM plano_estudos ORDER BY semana').fetchall()
-            conn.close()
-        else:
-            # PostgreSQL via SQLAlchemy
-            from sqlalchemy import text
-            result = conn.session.execute(text('SELECT * FROM plano_estudos ORDER BY semana'))
-            plano = result.fetchall()
-        
+        plano = execute_query('SELECT * FROM plano_estudos ORDER BY semana')
         return render_template('plano.html', plano=plano)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -167,68 +213,31 @@ def questoes():
     nivel = request.args.get('nivel', '')
     
     try:
-        if db_url.startswith('sqlite'):
-            # SQLite local
-            conn = get_db_connection()
-            query = 'SELECT DISTINCT disciplina FROM questoes ORDER BY disciplina'
-            disciplinas = conn.execute(query).fetchall()
-            
-            query = 'SELECT DISTINCT semana FROM questoes ORDER BY semana'
-            semanas = conn.execute(query).fetchall()
-            
-            # Construir query de questões com filtros
-            query = 'SELECT * FROM questoes WHERE 1=1'
-            params = []
-            
-            if disciplina:
-                query += ' AND disciplina = ?'
-                params.append(disciplina)
-            
-            if semana:
-                query += ' AND semana = ?'
-                params.append(semana)
-            
-            if nivel:
-                query += ' AND nivel = ?'
-                params.append(nivel)
-            
-            query += ' ORDER BY disciplina, semana, nivel'
-            
-            questoes = conn.execute(query, params).fetchall()
-            conn.close()
-            
-        else:
-            # PostgreSQL via SQLAlchemy
-            from sqlalchemy import text
-            
-            # Obter disciplinas
-            result = db.session.execute(text('SELECT DISTINCT disciplina FROM questoes ORDER BY disciplina'))
-            disciplinas = result.fetchall()
-            
-            # Obter semanas
-            result = db.session.execute(text('SELECT DISTINCT semana FROM questoes ORDER BY semana'))
-            semanas = result.fetchall()
-            
-            # Construir query de questões com filtros
-            query = 'SELECT * FROM questoes WHERE 1=1'
-            params = []
-            
-            if disciplina:
-                query += ' AND disciplina = :disciplina'
-                params['disciplina'] = disciplina
-            
-            if semana:
-                query += ' AND semana = :semana'
-                params['semana'] = semana
-            
-            if nivel:
-                query += ' AND nivel = :nivel'
-                params['nivel'] = nivel
-            
-            query += ' ORDER BY disciplina, semana, nivel'
-            
-            result = db.session.execute(text(query), params)
-            questoes = result.fetchall()
+        # Obter disciplinas
+        disciplinas = execute_query('SELECT DISTINCT disciplina FROM questoes ORDER BY disciplina')
+        
+        # Obter semanas
+        semanas = execute_query('SELECT DISTINCT semana FROM questoes ORDER BY semana')
+        
+        # Construir query de questões com filtros
+        query = 'SELECT * FROM questoes WHERE 1=1'
+        params = []
+        
+        if disciplina:
+            query += ' AND disciplina = ?'
+            params.append(disciplina)
+        
+        if semana:
+            query += ' AND semana = ?'
+            params.append(semana)
+        
+        if nivel:
+            query += ' AND nivel = ?'
+            params.append(nivel)
+        
+        query += ' ORDER BY disciplina, semana, nivel'
+        
+        questoes = execute_query(query, params)
         
         return render_template('questoes.html', 
                              questoes=questoes, 
@@ -242,16 +251,7 @@ def questoes():
 @app.route('/questao/<int:questao_id>')
 def questao_detalhe(questao_id):
     try:
-        if db_url.startswith('sqlite'):
-            # SQLite local
-            conn = get_db_connection()
-            questao = conn.execute('SELECT * FROM questoes WHERE id = ?', (questao_id,)).fetchone()
-            conn.close()
-        else:
-            # PostgreSQL via SQLAlchemy
-            from sqlalchemy import text
-            result = db.session.execute(text('SELECT * FROM questoes WHERE id = :id'), {'id': questao_id})
-            questao = result.fetchone()
+        questao = execute_query('SELECT * FROM questoes WHERE id = ?', [questao_id], fetch_one=True)
         
         if questao is None:
             return "Questão não encontrada", 404
